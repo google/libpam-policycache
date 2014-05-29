@@ -16,6 +16,7 @@
 
 #include "util.h"
 
+#include <glob.h>
 #include <grp.h>
 #include <pwd.h>
 #include <string.h>
@@ -385,4 +386,34 @@ gboolean CacheUtilCheckDuration(GDateTime *check_date, GTimeSpan duration,
   } else {
     return FALSE;
   }
+}
+
+
+/**
+ * CacheUtilGlob:
+ * @patten: See pattern argument of glob().
+ *
+ * Returns: (array zero-terminated=1)(allow-none): Array of file names matching
+ * the pattern, or #NULL if an unreadable directory was found.
+ */
+gchar **CacheUtilGlob(const gchar *pattern) {
+  glob_t glob_result = {0, NULL, 0};
+  gchar **result = NULL;
+
+  switch (glob(pattern, GLOB_BRACE | GLOB_ERR, NULL, &glob_result)) {
+    case 0:
+      break;
+    case GLOB_NOMATCH:
+      return g_new0(char *, 1); // Zero-length array of strings.
+    case GLOB_ABORTED:
+      return NULL; // Error reading directory.
+    case GLOB_NOSPACE:
+      g_error("glob() ran out of memory");
+    default:
+      g_error("glob() returned unexpected error");
+  }
+
+  result = g_strdupv(glob_result.gl_pathv);
+  globfree(&glob_result);
+  return result;
 }

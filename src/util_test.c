@@ -256,6 +256,23 @@ void TestCheckDuration() {
 }
 
 
+void TestGlob() {
+  gchar *pattern = CacheTestGetDataPath("policy*.conf");
+  gchar *expected_path1 = CacheTestGetDataPath("policy1.conf");
+  gchar *expected_path2 = CacheTestGetDataPath("policy2.conf");
+
+  gchar **paths = CacheUtilGlob(pattern);
+  g_assert_cmpstr(expected_path1, ==, paths[0]);
+  g_assert_cmpstr(expected_path2, ==, paths[1]);
+  g_assert_cmpstr(NULL, ==, paths[2]);
+
+  g_free(pattern);
+  g_free(expected_path1);
+  g_free(expected_path2);
+  g_strfreev(paths);
+}
+
+
 int main(int argc, char **argv) {
   CacheTestInit();
   CacheTestInitUsersAndGroups();
@@ -290,6 +307,8 @@ int main(int argc, char **argv) {
       "/util_test/TestStringArrayContains", TestStringArrayContains);
   g_test_add_func(
       "/util_test/TestCheckDuration", TestCheckDuration);
+  g_test_add_func(
+      "/util_test/TestGlob", TestGlob);
 
   return g_test_run();
 }
