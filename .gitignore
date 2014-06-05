@@ -15,3 +15,5 @@ src/*.o
 src/*.lo
 src/*.la
 src/*_test
+
+libpam-policycache-*.tar.gz
