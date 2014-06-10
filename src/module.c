@@ -59,10 +59,10 @@ gboolean CacheModuleAddArg(CacheModule *self, const gchar *arg,
     self->action = CACHE_MODULE_UPDATE_ACTION;
   } else if (g_str_has_prefix(arg, "policy=")) {
     g_free(self->policy_path);
-    self->policy_path = g_strdup(arg + 7);
+    self->policy_path = g_strdup(arg + strlen("policy="));
   } else if (g_str_has_prefix(arg, "storage=")) {
     g_free(self->storage_path);
-    self->storage_path = g_strdup(arg + 8);
+    self->storage_path = g_strdup(arg + strlen("storage="));
   } else {
     g_set_error(
         error, CACHE_MODULE_ERROR, CACHE_MODULE_UNKNOWN_ARGUMENT_ERROR,
