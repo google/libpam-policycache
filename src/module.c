@@ -35,6 +35,8 @@ CacheModule *CacheModuleNew(const gchar *username, int pam_flags) {
   result->pam_flags = pam_flags;
   result->policy_path = g_strdup(DEFAULT_POLICY_PATH);
   result->storage_path = g_strdup(DEFAULT_STORAGE_PATH);
+  result->args_seen = g_hash_table_new_full(g_str_hash, g_str_equal,
+                                            g_free, NULL);
   return result;
 }
 
@@ -43,34 +45,63 @@ void CacheModuleFree(CacheModule *self) {
   g_free(self->username);
   g_free(self->policy_path);
   g_free(self->storage_path);
+  g_hash_table_destroy(self->args_seen);
   g_free(self);
 }
 
 
 gboolean CacheModuleAddArg(CacheModule *self, const gchar *arg,
                            GError **error) {
-  if (g_str_equal(arg, "use_first_pass")) {
+  char *key = NULL;
+  char *value = NULL;
+  gboolean result = TRUE;
+
+  g_assert(arg);
+  if (!CacheUtilSplitString(arg, "=", &key, &value)) {
+    key = g_strdup(arg);
+  }
+
+  if (g_hash_table_contains(self->args_seen, key)) {
+    g_set_error(
+        error, CACHE_MODULE_ERROR, CACHE_MODULE_REPEAT_ARGUMENT_ERROR,
+        "Argument \"%s\" can't be repeated", key);
+    g_free(key);
+    g_free(value);
+    return FALSE;
+  }
+  g_hash_table_add(self->args_seen, key);
+
+  if (g_str_equal(key, "use_first_pass")) {
     self->use_first_pass = TRUE;
-  } else if (g_str_equal(arg, "try_first_pass")) {
+  } else if (g_str_equal(key, "try_first_pass")) {
     self->try_first_pass = TRUE;
-  } else if (g_str_equal(arg, "action=check")) {
-    self->action = CACHE_MODULE_CHECK_ACTION;
-  } else if (g_str_equal(arg, "action=update")) {
-    self->action = CACHE_MODULE_UPDATE_ACTION;
+  } else if (g_str_equal(key, "action")) {
+    if (g_str_equal(value, "check")) {
+      self->action = CACHE_MODULE_CHECK_ACTION;
+    } else if (g_str_equal(value, "update")) {
+      self->action = CACHE_MODULE_UPDATE_ACTION;
+    } else {
+      g_set_error(
+          error, CACHE_MODULE_ERROR, CACHE_MODULE_INVALID_ARGUMENT_ERROR,
+          "Unknown action '%s'", value);
+      result = FALSE;
+    }
   } else if (g_str_has_prefix(arg, "policy=")) {
     g_free(self->policy_path);
-    self->policy_path = g_strdup(arg + strlen("policy="));
+    self->policy_path = g_strdup(value);
   } else if (g_str_has_prefix(arg, "storage=")) {
     g_free(self->storage_path);
-    self->storage_path = g_strdup(arg + strlen("storage="));
+    self->storage_path = g_strdup(value);
   } else {
     g_set_error(
         error, CACHE_MODULE_ERROR, CACHE_MODULE_UNKNOWN_ARGUMENT_ERROR,
         "Unknown argument '%s'", arg);
-    return FALSE;
+    result = FALSE;
   }
 
-  return TRUE;
+  // Don't g_free(key) because it's taken by self->args_seen.
+  g_free(value);
+  return result;
 }
 
 

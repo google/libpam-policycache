@@ -194,6 +194,48 @@ static void TestBadPassword() {
 }
 
 
+static void TestRepeatArgument() {
+  CacheModule *module = CacheModuleNew("janedoe", 0);
+  GError *error = NULL;
+  gboolean result = FALSE;
+
+  result = CacheModuleAddArg(module, "use_first_pass", &error);
+  g_assert_no_error(error);
+  g_assert(result);
+
+  result = CacheModuleAddArg(module, "use_first_pass", &error);
+  g_assert_error(error, CACHE_MODULE_ERROR, CACHE_MODULE_REPEAT_ARGUMENT_ERROR);
+  g_assert(!result);
+
+  g_error_free(error);
+  CacheModuleFree(module);
+}
+
+
+static void TestInvalidActionArgument() {
+  CacheModule *module = CacheModuleNew("janedoe", 0);
+  GError *error = NULL;
+  gboolean result = CacheModuleAddArg(module, "action=lol", &error);
+  g_assert_error(error, CACHE_MODULE_ERROR,
+                 CACHE_MODULE_INVALID_ARGUMENT_ERROR);
+  g_assert(!result);
+  g_error_free(error);
+  CacheModuleFree(module);
+}
+
+
+static void TestUnknownArgument() {
+  CacheModule *module = CacheModuleNew("janedoe", 0);
+  GError *error = NULL;
+  gboolean result = CacheModuleAddArg(module, "nope", &error);
+  g_assert_error(error, CACHE_MODULE_ERROR,
+                 CACHE_MODULE_UNKNOWN_ARGUMENT_ERROR);
+  g_assert(!result);
+  g_error_free(error);
+  CacheModuleFree(module);
+}
+
+
 int main(int argc, char **argv) {
   CacheTestInit();
   CacheTestInitUsersAndGroups();
@@ -203,5 +245,9 @@ int main(int argc, char **argv) {
   g_test_add_func("/module_test/TestRenewPolicy", TestRenewPolicy);
   g_test_add_func("/module_test/TestExpirePolicy", TestExpirePolicy);
   g_test_add_func("/module_test/TestBadPassword", TestBadPassword);
+  g_test_add_func("/module_test/TestRepeatArgument", TestRepeatArgument);
+  g_test_add_func("/module_test/TestInvalidActionArgument",
+                  TestInvalidActionArgument);
+  g_test_add_func("/module_test/TestUnknownArgument", TestUnknownArgument);
   return g_test_run();
 }

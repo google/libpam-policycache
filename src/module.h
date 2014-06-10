@@ -26,6 +26,8 @@
 #define CACHE_MODULE_ERROR _CacheModuleErrorQuark()
 
 typedef enum {
+  CACHE_MODULE_REPEAT_ARGUMENT_ERROR,
+  CACHE_MODULE_INVALID_ARGUMENT_ERROR,
   CACHE_MODULE_UNKNOWN_ARGUMENT_ERROR,
   CACHE_MODULE_NO_POLICY_ERROR,
   CACHE_MODULE_NO_ACTION_ERROR,
@@ -46,6 +48,7 @@ typedef struct {
   gchar *policy_path;
   gchar *storage_path;
   CacheModuleAction action;
+  GHashTable *args_seen;
 } CacheModule;
 
 CacheModule *CacheModuleNew(const gchar *username, int pam_flags);
