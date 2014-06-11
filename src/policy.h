@@ -65,7 +65,8 @@ typedef enum {
 CachePolicy *CachePolicyNew();
 CachePolicy *CachePolicyNewFromSection(GKeyFile *key_file, const gchar *section,
                                        GError **error);
-CachePolicy *CachePolicyNewForUser(const gchar *username, const gchar **paths,
+CachePolicy *CachePolicyNewForUser(const gchar *username,
+                                   gchar **paths,
                                    GError **error);
 
 void CachePolicyRef(CachePolicy *self);

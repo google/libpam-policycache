@@ -108,7 +108,6 @@ void CacheTestSetMockTime(GDateTime *value) {
 
   if (value) {
     mock_time = value;
-    g_date_time_ref(mock_time);
   } else {
     mock_time = g_date_time_new_utc(2000, 1, 1, 0, 0, 0);
   }

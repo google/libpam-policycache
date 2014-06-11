@@ -65,7 +65,7 @@ void TestSetValue() {
 void TestNewForUser() {
   gchar *policy1_path = CacheTestGetDataPath("policy1.conf");
   gchar *policy2_path = CacheTestGetDataPath("policy2.conf");
-  const gchar *policy_paths [] = {policy1_path, policy2_path, NULL};
+  gchar *policy_paths [] = {policy1_path, policy2_path, NULL};
   GError *error = NULL;
   CachePolicy *policy = NULL;
 

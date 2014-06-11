@@ -45,4 +45,6 @@ gboolean CacheUtilStringArrayContains(const gchar **values,
 gboolean CacheUtilCheckDuration(GDateTime *check_date, GTimeSpan duration,
                                 GDateTime *start_date);
 
+gchar **CacheUtilGlob(const gchar *pattern);
+
 #endif

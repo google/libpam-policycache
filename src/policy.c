@@ -127,15 +127,16 @@ static gboolean CachePolicyMatchSection(const gchar *username,
 /**
  * CachePolicyNewForUser:
  * @username: Name of the user that the policy should apply to.
- * @paths: (array zero-terminated=1): List of policy config-file paths
- * containing the policies.
+ * @paths: (array zero-terminated=1)(transfer none): List of policy config-file
+ *   paths containing the policies.
  * @error: (out)(allow-none): Return location for a #GError, or #NULL.
  *
  * Returns: New #CachePolicy with the values from the first policy section
  * that applies to @username, or #NULL if there was any error reading/parsing
  * the policy configs.
  */
-CachePolicy *CachePolicyNewForUser(const gchar *username, const gchar **paths,
+CachePolicy *CachePolicyNewForUser(const gchar *username,
+                                   gchar **paths,
                                    GError **error) {
   gchar **groups = NULL;
   CachePolicy *self = NULL;
