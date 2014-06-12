@@ -20,8 +20,8 @@
 #include <glib.h>
 
 // TODO(vonhollen): Use variable from Makefile instead.
-#define DEFAULT_POLICY_PATH "/etc/libpam-policycache.d/*.conf"
-#define DEFAULT_STORAGE_PATH "/var/cache/libpam-policycache.d"
+#define DEFAULT_POLICY_PATH "/etc/libpam-policycache.d/*.policy"
+#define DEFAULT_STORAGE_PATH "/var/cache/libpam-policycache"
 
 #define CACHE_MODULE_ERROR _CacheModuleErrorQuark()
 
