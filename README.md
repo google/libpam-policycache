@@ -16,7 +16,7 @@ Why use libpam-policycache?
 Arguments:
 
 * `action=check`: Prompt the user for a password and check it against the cache.
-* `action=update`: Set the user's cached password to the last succesfull
+* `action=update`: Set the user's cached password to the last successful
   password in the stack.
 * `try_first_pass`: Try to use the password from a previous module (check only).
 * `use_first_pass`: Only use the password from a previous module (check only).
@@ -66,7 +66,7 @@ Each section has a combination of attributes:
 
 ## Example
 
-In the following example policy, user "jandedoe" may be the owner of the machine
+In the following example policy, user "janedoe" may be the owner of the machine
 and her login experience is similar to having a password in /etc/shadow. Her
 password only needs to be checked by another module once a year.
 
