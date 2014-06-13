@@ -20,8 +20,9 @@ Arguments:
   password in the stack.
 * `try_first_pass`: Try to use the password from a previous module (check only).
 * `use_first_pass`: Only use the password from a previous module (check only).
-* `policy=<path-glob>`: Default path-glob is "/etc/libpam-policycache.d/*.conf".
-* `storage=<path>`: Default path is "/var/cache/libpam-policycache".
+* `policy=<path-glob>`: Default path-glob is
+  `/etc/libpam-policycache.d/*.policy`.
+* `storage=<path>`: Default path is `/var/cache/libpam-policycache`.
 
 ## Example
 
