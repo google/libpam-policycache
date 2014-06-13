@@ -21,7 +21,7 @@ pam_policycache_la_LDFLAGS = -shared -module -avoid-version \
 			     $(AM_LDFLAGS)
 
 
-# Library and flags used to for tests and to mock some libc/glib methods.
+# Library and flags used for tests and to mock some libc/glib methods.
 MOCK_FLAGS = -Wl,--wrap,getpwnam \
 	     -Wl,--wrap,getgrnam \
 	     -Wl,--wrap,getgrgid \
