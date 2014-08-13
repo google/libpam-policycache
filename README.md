@@ -100,6 +100,35 @@ The cache entry format is human-readable for easier debugging:
 ```
 
 
+# User Applications
+
+Applications like screensavers that try to use the cache directly will be
+denied, since the cache directory is only usable by root. Those applications
+should use `pam_escalate.so` instead, which proxies the authentication prompt(s)
+through a pipe to a setuid-root helper called `pam-escalate-helper`. The helper
+calls `pam_start()` and `pam_authenticate()` just like an application would, and
+it always uses `/etc/pam.d/escalate` for the service configuration.
+
+The escalate module clears all environment variables, ignores some PAM items,
+and only implements `pam_sm_authenticate()` so it may not cover all use cases.
+
+At some point before or during the 1.0 release, the escalate module will be
+moved to its own project.
+
+## Example
+
+```
+# /etc/pam.d/gnome-screensaver
+auth requisite pam_escalate.so
+```
+
+```
+# /etc/pam.d/escalate
+# Include common-auth where cache check/update and other auth modules live.
+@include common-auth
+```
+
+
 # Building
 
 Built with autotools and includes an autogen.sh script:
