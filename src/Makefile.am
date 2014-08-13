@@ -3,22 +3,39 @@ AM_CFLAGS = $(GLIB_CFLAGS) -Wall -Werror \
 AM_LDFLAGS = $(GLIB_LIBS) -lpam
 
 
-# Common library for the tests and the final PAM module.
-noinst_LTLIBRARIES = libcache.la
+# Common libraries for the tests, setuid helper, and the final PAM modules.
+noinst_LTLIBRARIES = libcache.la libescalate.la
+
 libcache_la_SOURCES = util.h util.c \
 		      entry.h entry.c \
 		      storage.h storage.c \
 		      policy.h policy.c
 
+libescalate_la_SOURCES = escalate_message.c escalate_message.h \
+			 escalate_subprocess.c escalate_subprocess.h
 
-# The final PAM module.
+
+# The final PAM modules.
 securelibdir = $(libdir)/security
-securelib_LTLIBRARIES = pam_policycache.la
+securelib_LTLIBRARIES = pam_policycache.la pam_escalate.la
+
 pam_policycache_la_SOURCES = module.c module.h
 pam_policycache_la_LIBADD = libcache.la
 pam_policycache_la_LDFLAGS = -shared -module -avoid-version \
 			     -export-symbols-regex 'pam_sm_*' \
 			     $(AM_LDFLAGS)
+
+pam_escalate_la_SOURCES = escalate_module.c escalate_module.h
+pam_escalate_la_LIBADD = libescalate.la
+pam_escalate_la_LDFLAGS = -shared -module -avoid-version \
+			  -export-symbols-regex 'pam_sm_*' \
+			  $(AM_LDFLAGS)
+
+
+# The setuid helper for pam_escalate.
+bin_PROGRAMS = pam-escalate-helper
+pam_escalate_helper_SOURCES = escalate_helper.c escalate_helper.h
+pam_escalate_helper_LDADD = libescalate.la
 
 
 # Library and flags used for tests and to mock some libc/glib methods.
@@ -59,5 +76,10 @@ module_test_LDADD = libcache.la libtest.la
 module_test_LDFLAGS = -no-install $(AM_LDFLAGS) $(MOCK_FLAGS)
 module_test_CFLAGS = $(AM_CFLAGS)
 
-check_PROGRAMS = util_test entry_test storage_test policy_test module_test
+escalate_message_test_SOURCES = escalate_message_test.c
+escalate_message_test_LDADD = libescalate.la
+escalate_message_test_LDFLAGS = -no-install $(AM_LDFLAGS) $(MOCK_FLAGS)
+
+check_PROGRAMS = util_test entry_test storage_test policy_test module_test \
+		 escalate_message_test
 TESTS = $(check_PROGRAMS)
