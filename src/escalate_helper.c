@@ -26,6 +26,13 @@
 #include <unistd.h>
 
 
+/**
+ * EscalateHelperNew:
+ * @stdin_fd: Pipe to read messages from, usually STDIN_FILENO.
+ * @stdout_fd: Pipe to write messages to, usually STDOUT_FILENO.
+ *
+ * Returns: New #EscalateHelper instance.
+ */
 EscalateHelper *EscalateHelperNew(int stdin_fd, int stdout_fd) {
   EscalateHelper *self = g_new0(EscalateHelper, 1);
   self->reader = g_io_channel_unix_new(stdin_fd);
@@ -52,6 +59,13 @@ void EscalateHelperFree(EscalateHelper *self) {
 }
 
 
+/**
+ * EscalateHelperIsSafeItem:
+ * @item_type: PAM item type, see pam_get_item.
+ *
+ * Returns: #TRUE if it's OK to call pam_set_item with an untrusted string
+ * value for the given item type.
+ */
 static gboolean EscalateHelperIsSafeItem(int item_type) {
   switch (item_type) {
     case PAM_TTY:
@@ -66,6 +80,14 @@ static gboolean EscalateHelperIsSafeItem(int item_type) {
 }
 
 
+/**
+ * EscalateHelperRecv:
+ * @self: #EscalateHelper instance.
+ * @type: Only accept a message with this type.
+ * @error: (out)(allow-none): Error return location or #NULL.
+ *
+ * Returns: New #EscalateMessage instance, or #NULL on error.
+ */
 static EscalateMessage *EscalateHelperRecv(EscalateHelper *self,
                                            EscalateMessageType type,
                                            GError **error) {
@@ -73,19 +95,26 @@ static EscalateMessage *EscalateHelperRecv(EscalateHelper *self,
   if (!message)
     return NULL;
 
-  if (EscalateMessageGetType(message) == type) {
+  if (EscalateMessageGetType(message) == type)
     return message;
-  } else {
-    g_set_error(error, ESCALATE_HELPER_ERROR,
-                ESCALATE_HELPER_ERROR_UNEXPECTED_MESSAGE_TYPE,
-                "Expected message type %d but got %d instead", type,
-                EscalateMessageGetType(message));
-    EscalateMessageUnref(message);
-    return NULL;
-  }
+
+  g_set_error(error, ESCALATE_HELPER_ERROR,
+              ESCALATE_HELPER_ERROR_UNEXPECTED_MESSAGE_TYPE,
+              "Expected message type %d but got %d instead", type,
+              EscalateMessageGetType(message));
+  EscalateMessageUnref(message);
+  return NULL;
 }
 
 
+/**
+ * EscalateHelperCheckUsername:
+ * @self: #EscalateHelper instance.
+ * @error: (out)(allow-none): Error return location or #NULL.
+ *
+ * Returns: #TRUE if it's safe to try authentication for the user specified in
+ * the start message.
+ */
 static gboolean EscalateHelperCheckUsername(EscalateHelper *self,
                                             GError **error) {
   struct passwd *user = NULL;
@@ -115,6 +144,14 @@ static gboolean EscalateHelperCheckUsername(EscalateHelper *self,
 }
 
 
+/**
+ * EscalateHelperHandleStart:
+ * @self: #EscalateHelper instance.
+ * @error: (out)(allow-none): Error return location or #NULL.
+ *
+ * Return: #TRUE if pam_start() was called and it's OK to call
+ * EscalateHelperDoAction().
+ */
 gboolean EscalateHelperHandleStart(EscalateHelper *self, GError **error) {
   EscalateMessage *message = NULL;
   GVariantIter *items = NULL;
@@ -133,6 +170,7 @@ gboolean EscalateHelperHandleStart(EscalateHelper *self, GError **error) {
   if (!EscalateHelperCheckUsername(self, error))
     goto done;
 
+  // TODO(vonhollen): Safely allow calls to multiple services.
   pam_status = pam_start(ESCALATE_SERVICE_NAME, self->username, &self->conv,
                          &self->pamh);
   if (pam_status != PAM_SUCCESS) {
@@ -170,8 +208,18 @@ done:
 }
 
 
+/**
+ * EscalateHelperDoAction:
+ * @self: #EscalateHelper instance.
+ * @error: (out)(allow-none): Error return location or #NULL.
+ *
+ * Return: #TRUE if the action specified in the start message (just
+ * pam_authenticate for now) was called successfully and the finish message was
+ * sent.
+ */
 gboolean EscalateHelperDoAction(EscalateHelper *self, GError **error) {
   EscalateMessage *message = NULL;
+  gboolean success = FALSE;
 
   switch (self->action) {
     case ESCALATE_MESSAGE_ACTION_AUTHENTICATE:
@@ -182,10 +230,21 @@ gboolean EscalateHelperDoAction(EscalateHelper *self, GError **error) {
   }
 
   message = EscalateMessageNew(ESCALATE_MESSAGE_TYPE_FINISH, self->result);
-  return EscalateMessageWrite(message, self->writer, error);
+  success = EscalateMessageWrite(message, self->writer, error);
+  EscalateMessageUnref(message);
+  return success;
 }
 
 
+/**
+ * EscalateHelperPrompt:
+ * @self: #EscalateHelper instance.
+ * @conv_request: Conversation message to send.
+ * @conv_response: Conversation response contents received.
+ *
+ * Returns: PAM_SUCCESS if one message was sent and response was read, or
+ * PAM_CONV_ERROR on failure. Error are logged with pam_syslog.
+ */
 static int EscalateHelperPrompt(EscalateHelper *self,
                                 const struct pam_message *conv_request,
                                 struct pam_response *conv_response) {
@@ -217,7 +276,12 @@ static int EscalateHelperPrompt(EscalateHelper *self,
 
   EscalateMessageGetValues(response, &response_msg, &response_retcode);
 
-  conv_response->resp = strdup(response_msg);
+  if (response_msg) {
+    conv_response->resp = strdup(response_msg);
+  } else {
+    conv_response->resp = NULL;
+  }
+
   conv_response->resp_retcode = response_retcode;
   result = PAM_SUCCESS;
 
@@ -231,6 +295,17 @@ done:
 }
 
 
+/**
+ * EscalateHelperConversation:
+ * @conv_len: Number of messages in the conversation.
+ * @conv_requests: Array of pointers to messages to send.
+ * @conv_responses: (out)(transfer-full): Pointer which is set to an array
+ * of response structs. The caller must free() the array and the string value
+ * in each response.
+ *
+ * Return: PAM_SUCCESS is each request was sent and each response was read using
+ * EscalateHelperPrompt(), or PAM_CONV_ERR if there was any problem.
+ */
 int EscalateHelperConversation(int conv_len,
                                const struct pam_message **conv_requests,
                                struct pam_response **conv_responses,
@@ -245,7 +320,7 @@ int EscalateHelperConversation(int conv_len,
     return PAM_CONV_ERR;
   }
 
-  tmp_conv_responses = malloc(sizeof(struct pam_response) * conv_len);
+  tmp_conv_responses = calloc(conv_len, sizeof(struct pam_response));
   g_assert(tmp_conv_responses);
   memset(tmp_conv_responses, 0, sizeof(struct pam_response) * conv_len);
 
@@ -270,6 +345,7 @@ int EscalateHelperConversation(int conv_len,
 }
 
 
+#ifndef ESCALATE_HELPER_TESTING
 int main(int argc, char **argv) {
   GError *error = NULL;
   GOptionContext *context = NULL;
@@ -310,6 +386,7 @@ done:
   EscalateHelperFree(helper);
   return exit_code;
 }
+#endif
 
 
 GQuark _EscalateHelperErrorQuark() {
