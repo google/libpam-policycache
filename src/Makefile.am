@@ -33,12 +33,15 @@ pam_escalate_la_LDFLAGS = -shared -module -avoid-version \
 
 
 # The setuid helper for pam_escalate.
+# TODO(vonhollen): Call chmod in install hook.
 bin_PROGRAMS = pam-escalate-helper
 pam_escalate_helper_SOURCES = escalate_helper.c escalate_helper.h
 pam_escalate_helper_LDADD = libescalate.la
 
 
 # Library and flags used for tests and to mock some libc/glib methods.
+check_LTLIBRARIES = libtest.la libescalatetest.la
+
 MOCK_FLAGS = -Wl,--wrap,getpwnam \
 	     -Wl,--wrap,getgrnam \
 	     -Wl,--wrap,getgrgid \
@@ -47,11 +50,27 @@ MOCK_FLAGS = -Wl,--wrap,getpwnam \
 	     -Wl,--wrap,g_file_set_contents \
 	     -Wl,--wrap,g_date_time_new_now_utc
 
-check_LTLIBRARIES = libtest.la
-libtest_la_SOURCES = test.c test.h
+libtest_la_SOURCES = test.c test.h util.c util.h
 libtest_la_LDFLAGS = $(MOCK_FLAGS)
 libtest_la_CFLAGS = -DTESTDATA_DIR="\"$(top_srcdir)/testdata\"" \
 		    $(AM_CFLAGS)
+
+ESCALATE_MOCK_FLAGS = -Wl,--wrap,pam_start \
+		      -Wl,--wrap,pam_end \
+		      -Wl,--wrap,pam_get_item \
+		      -Wl,--wrap,pam_set_item \
+		      -Wl,--wrap,pam_getenv \
+		      -Wl,--wrap,pam_putenv \
+		      -Wl,--wrap,pam_getenvlist \
+		      -Wl,--wrap,pam_authenticate \
+		      -Wl,--wrap,g_spawn_async_with_pipes \
+		      -Wl,--wrap,getuid \
+		      -Wl,--wrap,geteuid \
+		      -Wl,--wrap,getgid \
+		      -Wl,--wrap,getegid
+
+libescalatetest_la_SOURCES = escalate_test.c escalate_test.h
+libescalatetest_la_LDFLAGS = $(ESCALATE_MOCK_FLAGS)
 
 
 # Unit-tests with one executable per test-suite.
@@ -78,8 +97,21 @@ module_test_CFLAGS = $(AM_CFLAGS)
 
 escalate_message_test_SOURCES = escalate_message_test.c
 escalate_message_test_LDADD = libescalate.la
-escalate_message_test_LDFLAGS = -no-install $(AM_LDFLAGS) $(MOCK_FLAGS)
+escalate_message_test_LDFLAGS = -no-install $(AM_LDFLAGS)
 
+#escalate_module_test_SOURCES = escalate_module_test.c
+#escalate_module_test_LDADD = libescalate.la libescalatetest.la
+#escalate_module_test_LDFLAGS = -no-install $(AM_LDFLAGS) $(ESCALATE_MOCK_FLAGS)
+
+escalate_helper_test_SOURCES = escalate_helper.c escalate_helper.h \
+			       escalate_helper_test.c
+escalate_helper_test_LDADD = libescalate.la libescalatetest.la libtest.la
+escalate_helper_test_LDFLAGS = -no-install $(AM_LDFLAGS) \
+			       $(ESCALATE_MOCK_FLAGS) \
+			       $(MOCK_FLAGS)
+escalate_helper_test_CFLAGS = -DESCALATE_HELPER_TESTING=1 $(AM_CFLAGS)
+
+# TODO: escalate_module_test
 check_PROGRAMS = util_test entry_test storage_test policy_test module_test \
-		 escalate_message_test
+		 escalate_message_test escalate_helper_test
 TESTS = $(check_PROGRAMS)
