@@ -21,6 +21,7 @@
 
 #include <glib-unix.h>
 #include <security/pam_appl.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -37,8 +38,8 @@ static int basic_pam_items [] = {
   PAM_AUTHTOK, PAM_OLDAUTHTOK, PAM_XDISPLAY, PAM_AUTHTOK_TYPE
 };
 
-static gchar **helper_expected_messages = NULL;
-static gchar **helper_response_messages = NULL;
+static gchar **mock_helper_expected_messages = NULL;
+static gchar **mock_helper_response_messages = NULL;
 
 static GPtrArray *mock_authenticate_prompts = NULL;
 static int mock_authenticate_result = 0;
@@ -96,7 +97,7 @@ int __wrap_pam_get_item(const MockPamHandle *self, int item_type,
   if (item_type == PAM_CONV) {
     *item = &self->conversation;
     return PAM_SUCCESS;
-  } else if (EscalateTestIsBasicPamItem(item_type)) {
+  } else if (g_hash_table_contains(self->items, GINT_TO_POINTER(item_type))) {
     *item = g_hash_table_lookup(self->items, GINT_TO_POINTER(item_type));
     return PAM_SUCCESS;
   } else {
@@ -118,6 +119,17 @@ int __wrap_pam_set_item(MockPamHandle *self, int item_type,
   } else {
     return PAM_BAD_ITEM;
   }
+}
+
+
+int __wrap_pam_get_user(MockPamHandle *self, const char **username,
+                        const char *prompt) {
+  g_assert(username);
+  g_assert(!prompt);
+  g_assert_cmpint(__wrap_pam_get_item(self, PAM_USER, (const void**) username),
+                  ==, PAM_SUCCESS);
+  g_assert(*username);
+  return PAM_SUCCESS;
 }
 
 
@@ -155,6 +167,16 @@ char **__wrap_pam_getenvlist(MockPamHandle *self) {
 
   result[g_hash_table_size(self->env)] = NULL;
   return result;
+}
+
+
+void __wrap_pam_syslog(MockPamHandle *self, gint priority, const gchar *format,
+                       ...) {
+  GLogLevelFlags log_level = G_LOG_LEVEL_WARNING;
+  va_list args;
+  va_start(args, format);
+  g_logv(G_LOG_DOMAIN, log_level, format, args);
+  va_end(args);
 }
 
 
@@ -215,15 +237,6 @@ int __wrap_pam_authenticate(MockPamHandle *self, int flags) {
 }
 
 
-void EscalateTestSetHelperMessages(gchar **expected_messages,
-                                   gchar **response_messages) {
-  g_assert_cmpint(g_strv_length(expected_messages), ==,
-                  g_strv_length(response_messages));
-  helper_expected_messages = g_strdupv(expected_messages);
-  helper_response_messages = g_strdupv(response_messages);
-}
-
-
 void EscalateTestSetIds(uid_t ruid, uid_t euid, gid_t rgid, gid_t egid) {
   mock_ruid = ruid;
   mock_euid = euid;
@@ -249,4 +262,114 @@ gid_t __wrap_getgid() {
 
 gid_t __wrap_getegid() {
   return mock_egid;
+}
+
+
+void EscalateTestSetMockHelperMessages(gchar **expected_messages,
+                                       gchar **response_messages) {
+  g_strfreev(mock_helper_expected_messages);
+  g_strfreev(mock_helper_response_messages);
+  mock_helper_expected_messages = g_strdupv(expected_messages);
+  mock_helper_response_messages = g_strdupv(response_messages);
+}
+
+
+static int EscalateTestMockHelperProcess(int stdin_fd, int stdout_fd) {
+  GIOChannel *stdin_stream = g_io_channel_unix_new(stdin_fd);
+  GIOChannel *stdout_stream = g_io_channel_unix_new(stdout_fd);
+  EscalateMessage *expected = NULL;
+  EscalateMessage *message = NULL;
+  EscalateMessage *response = NULL;
+  GError *error = NULL;
+  gboolean success = FALSE;
+
+  g_assert(mock_helper_expected_messages);
+  g_assert(mock_helper_response_messages);
+
+  for (guint i = 0; i < g_strv_length(mock_helper_expected_messages); i++) {
+    expected = EscalateMessageLoad(mock_helper_expected_messages[i], &error);
+    g_assert_no_error(error);
+    g_assert(expected);
+
+    message = EscalateMessageRead(stdin_stream, &error);
+    g_assert_no_error(error);
+    g_assert(message);
+
+    response = EscalateMessageLoad(mock_helper_response_messages[i], &error);
+    g_assert_no_error(error);
+    g_assert(response);
+
+    g_assert_cmpint(expected->type, ==, message->type);
+    if (!g_variant_equal(expected->values, message->values)) {
+      gchar *variant_str = g_variant_print(expected->values, FALSE);
+      g_message("Expected: %s", variant_str);
+      g_free(variant_str);
+      variant_str = g_variant_print(message->values, FALSE);
+      g_message("Got: %s", variant_str);
+      g_free(variant_str);
+      g_error("Message values didn't match what was expected");
+    }
+
+    success = EscalateMessageWrite(response, stdout_stream, &error);
+    g_assert_no_error(error);
+    g_assert(success);
+
+    EscalateMessageUnref(expected);
+    EscalateMessageUnref(message);
+    EscalateMessageUnref(response);
+  }
+
+  g_io_channel_shutdown(stdin_stream, FALSE, NULL);
+  g_io_channel_shutdown(stdout_stream, FALSE, NULL);
+  g_io_channel_unref(stdin_stream);
+  g_io_channel_unref(stdout_stream);
+  return 0;
+}
+
+
+gboolean __wrap_g_spawn_async_with_pipes(const gchar *working_directory,
+                                         gchar **argv,
+                                         gchar **envp,
+                                         GSpawnFlags flags,
+                                         GSpawnChildSetupFunc child_setup,
+                                         gpointer user_data,
+                                         GPid *child_pid,
+                                         gint *standard_input,
+                                         gint *standard_output,
+                                         gint *standard_error,
+                                         GError **error) {
+  int standard_input_fds [2] = { 0, 0 };
+  int standard_output_fds [2] = { 0, 0 };
+  pid_t pid = 0;
+
+  g_assert_cmpstr("/", ==, working_directory);
+  g_assert(argv);
+  g_assert_cmpstr("/usr/bin/pam-escalate-helper", ==, argv[0]);
+  g_assert_cmpstr(NULL, ==, argv[1]);
+  g_assert(!envp);
+  g_assert_cmpint(0, ==, flags);
+  g_assert(!child_setup);
+  g_assert(!user_data);
+  g_assert(child_pid);
+  g_assert(standard_input);
+  g_assert(standard_output);
+  g_assert(!standard_error);
+
+  g_assert(g_unix_open_pipe(standard_input_fds, 0, NULL));
+  g_assert(g_unix_open_pipe(standard_output_fds, 0, NULL));
+
+  pid = fork();
+  if (pid) {
+    close(standard_input_fds[0]);
+    close(standard_output_fds[1]);
+    *child_pid = pid;
+    *standard_input = standard_input_fds[1];
+    *standard_output = standard_output_fds[0];
+    return TRUE;
+  } else {
+    close(standard_input_fds[1]);
+    close(standard_output_fds[0]);
+    exit(EscalateTestMockHelperProcess(standard_input_fds[0],
+                                       standard_output_fds[1]));
+  }
 }

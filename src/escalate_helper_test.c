@@ -136,5 +136,6 @@ int main(int argc, char **argv) {
   CacheTestInitUsersAndGroups();
   g_test_init(&argc, &argv, NULL);
   g_test_add_func("/escalate_helper_test/TestAuthSuccess", TestAuthSuccess);
+  // TODO(vonhollen): More tests!
   return g_test_run();
 }

@@ -29,10 +29,22 @@ static gint escalate_module_include_items [] = {
 };
 
 
-EscalateModule *EscalateModuleNew(pam_handle_t *pamh, int flags, int argc,
-                                  const char **argv, GError **error) {
+/**
+ * EscalateModuleNew:
+ * @pamh: PAM handle.
+ * @flags: PAM flags.
+ * @argc: Number of arguments given to the PAM module.
+ * @argv: Array of argument strings given to the PAM module.
+ * @helper: Path to helper executable, or #NULL for the default path.
+ * @error: (out)(allow-none): Error return location or #NULL.
+ *
+ * Returns: New #EscalateModule instance.
+ */
+EscalateModule *EscalateModuleNew(pam_handle_t *pamh, gint flags, gint argc,
+                                  const gchar **argv, const gchar *helper,
+                                  GError **error) {
   EscalateModule *self = g_new0(EscalateModule, 1);
-  int pam_result = PAM_SYSTEM_ERR;
+  gint pam_result = PAM_SYSTEM_ERR;
   const gchar *username = NULL;
 
   self->pamh = pamh;
@@ -76,7 +88,7 @@ EscalateModule *EscalateModuleNew(pam_handle_t *pamh, int flags, int argc,
 
   // TODO(vonhollen): Handle SIGCHLD for this process without messing up an
   // existing handler.
-  self->child = EscalateSubprocessNew(NULL, error);
+  self->child = EscalateSubprocessNew(helper, error);
   if (!self->child)
     goto failed;
 
@@ -88,7 +100,20 @@ failed:
 }
 
 
+/**
+ * EscalateModuleFree:
+ * @self: Module to free resources from.
+ *
+ * This PAM module is safe to unload after this function exits. All signal
+ * handlers are reset to their original values, all child processes have exited,
+ * and no background threads are running.
+ *
+ * If the module can't be made safe to unload, a new reference must be created
+ * with dlopen().
+ */
 void EscalateModuleFree(EscalateModule *self) {
+  // TODO(vonhollen): Make sure the subprocess is dead and reset any changes to
+  // signal handlers done in EscalateModuleNew().
   if (self->child)
     EscalateSubprocessUnref(self->child);
   g_free(self->username);
@@ -96,11 +121,20 @@ void EscalateModuleFree(EscalateModule *self) {
 }
 
 
+/**
+ * EscalateModuleStartAddItem:
+ * @self: Module containing the PAM handle.
+ * @items: Array to append PAM item type and value tuples to.
+ * @item: Item type of the value to fetch using pam_get_item().
+ * @error: (out)(allow-none): Error return location or #NULL.
+ *
+ * Returns: #TRUE if there was no fatal error.
+ */
 static gboolean EscalateModuleStartAddItem(EscalateModule *self,
                                            GVariantBuilder *items, gint item,
                                            GError **error) {
   const gchar *value = NULL;
-  int status = pam_get_item(self->pamh, item, (const void **) &value);
+  gint status = pam_get_item(self->pamh, item, (const void **) &value);
   switch (status) {
     case PAM_SUCCESS:
       g_variant_builder_add(items, "{ims}", item, value);
@@ -117,6 +151,16 @@ static gboolean EscalateModuleStartAddItem(EscalateModule *self,
 }
 
 
+/**
+ * EscalateModuleStart:
+ * @self: PAM module being described in the start message.
+ * @action: Action being called on this module, like
+ * #ESCALATE_MESSAGE_ACTION_AUTHENTICATE when pam_sm_authenticate() is being
+ * used.
+ * @error: (out)(allow-none): Error return location or #NULL.
+ *
+ * Returns: #TRUE if the message was sent.
+ */
 gboolean EscalateModuleStart(EscalateModule *self, EscalateMessageAction action,
                              GError **error) {
   GVariantBuilder *items = NULL;
@@ -145,17 +189,28 @@ done:
 }
 
 
+/**
+ * EscalateModuleHandleConversation:
+ * @self: PAM module to forward conversation messages to.
+ * @message: Conversation message from the helper process holding the same
+ * values as one "struct pam_message".
+ * @error: (out)(allow-none): Error return location or #NULL.
+ *
+ * Returns: #TRUE if a response message was sent back to the helper process.
+ */
 static gboolean EscalateModuleHandleConversation(EscalateModule *self,
                                                  EscalateMessage *message,
                                                  GError **error) {
+  gchar *conv_message_str = NULL;
   struct pam_message conv_message = { 0, NULL };
   const struct pam_message *conv_message_array [] = { &conv_message, NULL };
   struct pam_response *conv_response = NULL;
-  int pam_status = PAM_SYSTEM_ERR;
+  gint pam_status = PAM_SYSTEM_ERR;
   EscalateMessage *response = NULL;
   gboolean result = FALSE;
 
-  EscalateMessageGetValues(message, &conv_message.msg_style, &conv_message.msg);
+  EscalateMessageGetValues(message, &conv_message.msg_style, &conv_message_str);
+  conv_message.msg = conv_message_str;
 
   // TODO(vonhollen): Support multiple requests/responses per call.
   pam_status = self->conv->conv(1, conv_message_array, &conv_response,
@@ -174,6 +229,7 @@ static gboolean EscalateModuleHandleConversation(EscalateModule *self,
     result = TRUE;
 
 done:
+  g_free(conv_message_str);
   if (conv_response) {
     free(conv_response[0].resp);
     free(conv_response);
@@ -185,6 +241,15 @@ done:
 }
 
 
+/**
+ * EscalateModuleHandleFinish:
+ * @self: PAM module that should return the result in @message.
+ * @message: Message from the helper process containing its final result.
+ * @error: (out)(allow-none): Error return location or #NULL. Unused for now,
+ * but included to match the signature of EscalateModuleHandleConversation().
+ *
+ * Returns: #TRUE always.
+ */
 static gboolean EscalateModuleHandleFinish(EscalateModule *self,
                                            EscalateMessage *message,
                                            GError **error) {
@@ -194,6 +259,13 @@ static gboolean EscalateModuleHandleFinish(EscalateModule *self,
 }
 
 
+/**
+ * EscalateModuleHandleNext:
+ * @self: PAM module that's receiving messages from the helper process.
+ * @error: (out)(allow-none): Error return location or #NULL.
+ *
+ * Returns: #TRUE if a message was read and handled without an error.
+ */
 gboolean EscalateModuleHandleNext(EscalateModule *self, GError **error) {
   EscalateMessage *message = NULL;
   gboolean result = FALSE;
@@ -224,23 +296,47 @@ done:
 }
 
 
+/**
+ * EscalateModuleKeepGoing:
+ * @self: PAM module that's receiving messages from the helper process.
+ *
+ * Returns: #TRUE if the helper hasn't sent the finish message yet.
+ */
 gboolean EscalateModuleKeepGoing(EscalateModule *self) {
   return self->keep_going;
 }
 
 
+/**
+ * EscalateModuleGetResult:
+ * @self: PAM module that received a finish message.
+ *
+ * Returns: PAM status from the finish message, or PAM_SYSTEM_ERR if the finish
+ * message hasn't been received.
+ */
 int EscalateModuleGetResult(EscalateModule *self) {
   return self->result;
 }
 
 
-static int EscalateModuleMain(EscalateMessageAction action, pam_handle_t *pamh,
-                              int flags, int argc, const char **argv) {
+/**
+ * EscalateModuleMain:
+ * @action: Action being called on this module, like
+ * ESCALATE_MESSAGE_ACTION_AUTHENTICATE for pam_sm_authenticate().
+ * @pamh: PAM handle.
+ * @flags: PAM flags.
+ * @argc: Number of arguments given to the PAM module.
+ * @argv: Array of argument strings given to the PAM module.
+ *
+ * Returns: PAM status to return from the pam_sm_*() functions.
+ */
+int EscalateModuleMain(EscalateMessageAction action, pam_handle_t *pamh,
+                       gint flags, gint argc, const gchar **argv) {
   GError *error = NULL;
   EscalateModule *module = NULL;
-  int result = PAM_SYSTEM_ERR;
+  gint result = PAM_SYSTEM_ERR;
 
-  module = EscalateModuleNew(pamh, flags, argc, argv, &error);
+  module = EscalateModuleNew(pamh, flags, argc, argv, NULL, &error);
   if (!module)
     goto done;
 

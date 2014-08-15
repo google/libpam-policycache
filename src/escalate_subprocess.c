@@ -37,7 +37,7 @@ EscalateSubprocess *EscalateSubprocessNew(const gchar *path, GError **error) {
   if (!child_argv[0])
     child_argv[0] = "/usr/bin/pam-escalate-helper";
 
-  if (!g_spawn_async_with_pipes(NULL, (gchar **) child_argv, NULL, 0, NULL,
+  if (!g_spawn_async_with_pipes("/", (gchar **) child_argv, NULL, 0, NULL,
                                 NULL, &child_pid, &child_stdin_fd,
                                 &child_stdout_fd, NULL, error)) {
     return NULL;
@@ -65,6 +65,11 @@ void EscalateSubprocessUnref(EscalateSubprocess *self) {
     return;
 
   // TODO: Cleanup process.
+  g_io_channel_shutdown(self->child_stdin, FALSE, NULL);
+  g_io_channel_shutdown(self->child_stdout, FALSE, NULL);
+  g_io_channel_unref(self->child_stdin);
+  g_io_channel_unref(self->child_stdout);
+  g_free(self);
 }
 
 

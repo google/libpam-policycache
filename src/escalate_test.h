@@ -27,11 +27,9 @@ typedef struct {
   gchar *expect;
 } EscalateTestPrompt;
 
-void EscalateTestSetHelperMessages(gchar **expected_messages,
-                                   gchar **response_messages);
-
 void EscalateTestMockAuthenticate(EscalateTestPrompt *prompts, int result);
-
 void EscalateTestSetIds(uid_t ruid, uid_t euid, gid_t rgid, gid_t egid);
+void EscalateTestSetMockHelperMessages(gchar **expected_messages,
+                                       gchar **response_messages);
 
 #endif

@@ -65,7 +65,8 @@ typedef struct {
 } EscalateModule;
 
 EscalateModule *EscalateModuleNew(pam_handle_t *pamh, int flags, int argc,
-                                  const char **argv, GError **error);
+                                  const char **argv, const char *helper,
+                                  GError **error);
 void EscalateModuleFree(EscalateModule *self);
 
 gboolean EscalateModuleStart(EscalateModule *self, EscalateMessageAction action,
@@ -73,6 +74,9 @@ gboolean EscalateModuleStart(EscalateModule *self, EscalateMessageAction action,
 gboolean EscalateModuleHandleNext(EscalateModule *self, GError **error);
 gboolean EscalateModuleKeepGoing(EscalateModule *self);
 int EscalateModuleGetResult(EscalateModule *self);
+
+int EscalateModuleMain(EscalateMessageAction action, pam_handle_t *pamh,
+                       gint flags, gint argc, const gchar **argv);
 
 GQuark _EscalateModuleErrorQuark();
 

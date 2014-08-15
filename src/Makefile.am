@@ -59,9 +59,11 @@ ESCALATE_MOCK_FLAGS = -Wl,--wrap,pam_start \
 		      -Wl,--wrap,pam_end \
 		      -Wl,--wrap,pam_get_item \
 		      -Wl,--wrap,pam_set_item \
+		      -Wl,--wrap,pam_get_user \
 		      -Wl,--wrap,pam_getenv \
 		      -Wl,--wrap,pam_putenv \
 		      -Wl,--wrap,pam_getenvlist \
+		      -Wl,--wrap,pam_syslog \
 		      -Wl,--wrap,pam_authenticate \
 		      -Wl,--wrap,g_spawn_async_with_pipes \
 		      -Wl,--wrap,getuid \
@@ -99,19 +101,20 @@ escalate_message_test_SOURCES = escalate_message_test.c
 escalate_message_test_LDADD = libescalate.la
 escalate_message_test_LDFLAGS = -no-install $(AM_LDFLAGS)
 
-#escalate_module_test_SOURCES = escalate_module_test.c
-#escalate_module_test_LDADD = libescalate.la libescalatetest.la
-#escalate_module_test_LDFLAGS = -no-install $(AM_LDFLAGS) $(ESCALATE_MOCK_FLAGS)
+escalate_module_test_SOURCES = escalate_module.c escalate_module.h \
+			       escalate_module_test.c
+escalate_module_test_LDADD = libescalate.la libescalatetest.la libtest.la
+escalate_module_test_LDFLAGS = -no-install $(AM_LDFLAGS) $(MOCK_FLAGS) \
+			       $(ESCALATE_MOCK_FLAGS)
+escalate_module_test_CFLAGS = $(AM_CFLAGS)
 
 escalate_helper_test_SOURCES = escalate_helper.c escalate_helper.h \
 			       escalate_helper_test.c
 escalate_helper_test_LDADD = libescalate.la libescalatetest.la libtest.la
-escalate_helper_test_LDFLAGS = -no-install $(AM_LDFLAGS) \
-			       $(ESCALATE_MOCK_FLAGS) \
-			       $(MOCK_FLAGS)
+escalate_helper_test_LDFLAGS = -no-install $(AM_LDFLAGS) $(MOCK_FLAGS) \
+			       $(ESCALATE_MOCK_FLAGS)
 escalate_helper_test_CFLAGS = -DESCALATE_HELPER_TESTING=1 $(AM_CFLAGS)
 
-# TODO: escalate_module_test
 check_PROGRAMS = util_test entry_test storage_test policy_test module_test \
-		 escalate_message_test escalate_helper_test
+		 escalate_message_test escalate_helper_test escalate_module_test
 TESTS = $(check_PROGRAMS)
