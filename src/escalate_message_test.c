@@ -22,7 +22,7 @@
 static const gchar *example_messages [] = {
   "(1, <(1, 0, 'testuser', {2: @ms 'testuser'})>)",
   "(2, <(1, 'Password: ')>)",
-  "(3, <('testpass', 0)>)",
+  "(3, <(@ms 'testpass', 0)>)",
   "(4, <(0,)>)",
 };
 
@@ -44,7 +44,7 @@ static GVariant *CreateExampleMessageValues(guint example_message_index) {
     case 1:
       return g_variant_new("(is)", 1, "Password: ");
     case 2:
-      return g_variant_new("(si)", "testpass", 0);
+      return g_variant_new("(msi)", "testpass", 0);
     case 3:
       return g_variant_new("(i)", 0);
     default:
@@ -116,19 +116,16 @@ static void TestGetValues(gconstpointer user_data) {
       g_assert_cmpstr("testuser", ==, value);
       g_assert(!g_variant_iter_next(iter, "{ims}", NULL, NULL));
       g_variant_iter_free(iter);
-      g_free(value);
       break;
     case 1:
       EscalateMessageGetValues(message, &flags, &value);
       g_assert_cmpint(1, ==, flags);
       g_assert_cmpstr("Password: ", ==, value);
-      g_free(value);
       break;
     case 2:
       EscalateMessageGetValues(message, &value, &flags);
       g_assert_cmpstr("testpass", ==, value);
       g_assert_cmpint(0, ==, flags);
-      g_free(value);
       break;
     case 3:
       EscalateMessageGetValues(message, &flags);
@@ -137,6 +134,10 @@ static void TestGetValues(gconstpointer user_data) {
     default:
       g_error("No message available for index %d", index);
   }
+
+  g_free(username);
+  g_free(value);
+  EscalateMessageUnref(message);
 }
 
 
@@ -227,7 +228,6 @@ static void TestRead(gconstpointer user_data) {
   g_error_free(error);
 
   g_thread_join(thread);
-  g_thread_unref(thread);
   g_variant_unref(expected_values);
   g_io_channel_shutdown(reader, FALSE, NULL);
   g_io_channel_unref(reader);
@@ -281,7 +281,6 @@ static void TestWrite(gconstpointer user_data) {
 
   g_io_channel_unref(reader);
   g_io_channel_unref(writer);
-  g_thread_unref(thread);
   EscalateMessageUnref(message);
   g_free(result);
 }

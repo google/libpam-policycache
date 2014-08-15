@@ -18,20 +18,25 @@
 
 #include <string.h>
 
-
-typedef struct {
+static struct {
   EscalateMessageType type;
   const gchar *fmt;
-} EscalateMessageFormat;
-
-static EscalateMessageFormat escalate_message_formats [] = {
+} escalate_message_formats [] = {
   { ESCALATE_MESSAGE_TYPE_START, "(iisa{ims})" },
   { ESCALATE_MESSAGE_TYPE_CONV_MESSAGE, "(is)" },
-  { ESCALATE_MESSAGE_TYPE_CONV_RESPONSE, "(si)" },
+  { ESCALATE_MESSAGE_TYPE_CONV_RESPONSE, "(msi)" },
   { ESCALATE_MESSAGE_TYPE_FINISH, "(i)" },
 };
 
 
+/**
+ * EscalateMessageGetFormat:
+ * @type: Message type.
+ *
+ * Returns: GVariant format string describing the values of any message with
+ * that type. Suitable for format_string in g_variant_new(), g_variant_get(),
+ * etc.
+ */
 static const gchar *EscalateMessageGetFormat(EscalateMessageType type) {
   for (guint i = 0; i < G_N_ELEMENTS(escalate_message_formats); i++) {
     if (escalate_message_formats[i].type == type) {
@@ -42,6 +47,17 @@ static const gchar *EscalateMessageGetFormat(EscalateMessageType type) {
 }
 
 
+/**
+ * EscalateMessageNew:
+ * @type: The #EscalateMessageType value for the new message.
+ * @...: Arguments for the values contained in the message, passed to
+ * g_variant_new_va().
+ *
+ * The format string used for g_variant_new_va is selected using the @type
+ * value.
+ *
+ * Returns: New #EscalateMessage instance.
+ */
 EscalateMessage *EscalateMessageNew(EscalateMessageType type, ...) {
   const gchar *fmt = EscalateMessageGetFormat(type);
   EscalateMessage *self = g_new0(EscalateMessage, 1);
@@ -50,12 +66,19 @@ EscalateMessage *EscalateMessageNew(EscalateMessageType type, ...) {
   va_start(args, type);
   self->_refcount = 1;
   self->type = type;
-  self->values = g_variant_new_va(fmt, NULL, &args);
+  self->values = g_variant_ref_sink(g_variant_new_va(fmt, NULL, &args));
   va_end(args);
   return self;
 }
 
 
+/**
+ * EscalateMessageLoad:
+ * @value: Message string to parse.
+ * @error: (out)(allow-none): Error return location or #NULL.
+ *
+ * Returns: New #EscalateMessage instance, or #NULL on error.
+ */
 EscalateMessage *EscalateMessageLoad(const gchar *value, GError **error) {
   GVariant *message = NULL;
   EscalateMessageType type = 0;
@@ -87,7 +110,7 @@ EscalateMessage *EscalateMessageLoad(const gchar *value, GError **error) {
   self->_refcount = 1;
   self->type = type;
   self->values = values;
-  g_variant_ref(values);
+  values = NULL;
 
 done:
   if (message)
@@ -98,10 +121,19 @@ done:
 }
 
 
+/**
+ * EscalateMessageRead:
+ * @stream: Stream to read one message line from. Must be in blocking mode.
+ * @error: (out)(allow-none): Error return location or #NULL.
+ *
+ * Returns: New #EscalateMessage instance, or #NULL on error.
+ */
 EscalateMessage *EscalateMessageRead(GIOChannel *stream, GError **error) {
   gchar *line = NULL;
   gsize line_term = 0;
   EscalateMessage *self = NULL;
+
+  g_assert(!(g_io_channel_get_flags(stream) & G_IO_FLAG_NONBLOCK));
 
   switch (g_io_channel_read_line(stream, &line, NULL, &line_term,
                                  error)) {
@@ -149,6 +181,14 @@ EscalateMessageType EscalateMessageGetType(EscalateMessage *self) {
 }
 
 
+/**
+ * EscalateMessageGetValues:
+ * @self: #EscalateMessage instance to get values from.
+ * @...: Pointers to where to store copies of the values, just like the
+ * arguments to g_variant_get.
+ *
+ * The format given to g_variant_get_va() is provided by the message type.
+ */
 void EscalateMessageGetValues(EscalateMessage *self, ...) {
   const gchar *fmt = EscalateMessageGetFormat(self->type);
   va_list args;
@@ -159,15 +199,31 @@ void EscalateMessageGetValues(EscalateMessage *self, ...) {
 }
 
 
+/**
+ * EscalateMessageDump:
+ * @self: #EscalateMessage instance to serialize.
+ *
+ * Returns: Human-readable string representing the message that never contains
+ * unescaped newlines. See g_variant_print for more about the text format.
+ */
 gchar *EscalateMessageDump(EscalateMessage *self) {
-  g_variant_ref(self->values);
   GVariant *message = g_variant_new("(iv)", self->type, self->values);
   gchar *result = g_variant_print(message, TRUE);
   g_variant_unref(message);
+  g_assert(!g_strrstr(result, "\n"));
   return result;
 }
 
 
+/**
+ * EscalateMessageWrite:
+ * @self: #EscalateMessage instance to serialize and write.
+ * @stream: Stream to write the message string and a newline to. Must be in
+ * blocking mode.
+ * @error: (out)(allow-none): Error return location or #NULL.
+ *
+ * Returns: #TRUE if the message text and newline were written to the stream.
+ */
 gboolean EscalateMessageWrite(EscalateMessage *self, GIOChannel *stream,
                               GError **error) {
   gchar *message_str = EscalateMessageDump(self);
@@ -175,6 +231,8 @@ gboolean EscalateMessageWrite(EscalateMessage *self, GIOChannel *stream,
   gsize written = 0;
   GIOStatus io_status = 0;
   gboolean result = FALSE;
+
+  g_assert(!(g_io_channel_get_flags(stream) & G_IO_FLAG_NONBLOCK));
 
   message_str[message_len] = '\n';
   message_len++;

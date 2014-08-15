@@ -21,12 +21,32 @@
 
 #define ESCALATE_MESSAGE_ERROR _EscalateMessageErrorQuark()
 
+/**
+ * @ESCALATE_MESSAGE_ERROR_TYPE: Unknown #EscalateMessageType given/read.
+ * @ESCALATE_MESSAGE_ERROR_FORMAT: #GVariantType of the message values doesn't
+ * match its type.
+ * @ESCALATE_MESSAGE_ERROR_EOF: No more messages are available to read from the
+ * stream.
+ */
 typedef enum {
   ESCALATE_MESSAGE_ERROR_TYPE,
   ESCALATE_MESSAGE_ERROR_FORMAT,
   ESCALATE_MESSAGE_ERROR_EOF,
 } EscalateMessageError;
 
+/**
+ * EscalateMessageType:
+ * @ESCALATE_MESSAGE_TYPE_START: First message sent to the helper. Includes the
+ * desired PAM method (#EscalateMessageAction), PAM flags, username, and PAM
+ * items as key/value pairs.
+ * @ESCALATE_MESSAGE_TYPE_CONV_MESSAGE: Message/prompt sent to pam_escalate.so
+ * containing the fields from 'struct pam_message'.
+ * @ESCALATE_MESSAGE_TYPE_CONV_RESPONSE: Response to a message/prompt sent to
+ * the helper, containing the fields from 'struct pam_response'.
+ * @ESCALATE_MESSAGE_TYPE_FINISH: Final message sent to pam_escalate.so
+ * indicating success/failure using PAM status values like PAM_SUCCESS or
+ * PAM_AUTH_ERR.
+ */
 typedef enum {
   ESCALATE_MESSAGE_TYPE_START = 1,
   ESCALATE_MESSAGE_TYPE_CONV_MESSAGE,
@@ -34,11 +54,21 @@ typedef enum {
   ESCALATE_MESSAGE_TYPE_FINISH,
 } EscalateMessageType;
 
+/**
+ * EscalateMessageAction:
+ * @ESCALATE_MESSAGE_ACTION_UNKNOWN: Action not set.
+ * @ESCALATE_MESSAGE_ACTION_AUTHENTICATE: Use pam_authenticate().
+ */
 typedef enum {
   ESCALATE_MESSAGE_ACTION_UNKNOWN = 0,
   ESCALATE_MESSAGE_ACTION_AUTHENTICATE = 1,
 } EscalateMessageAction;
 
+/**
+ * EscalateMessage:
+ * @type: Type of message. Used to choose the #GVariantType for @values.
+ * @values: Tuple with the message's values.
+ */
 typedef struct {
   int _refcount;
   EscalateMessageType type;
