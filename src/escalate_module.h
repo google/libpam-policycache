@@ -24,6 +24,14 @@
 #include <glib.h>
 #include <security/pam_modules.h>
 
+/**
+ * EscalateModuleError:
+ * @ESCALATE_MODULE_ERROR_UNKNOWN_ARG: Unknown argument given to module.
+ * @ESCALATE_MODULE_ERROR_NO_USERNAME: No username available.
+ * @ESCALATE_MODULE_ERROR_GET_ITEM_FAILED: Failed to get PAM item for message.
+ * @ESCALATE_MODULE_ERROR_CONV: No conversation function available.
+ * @ESCALATE_MODULE_ERROR_MESSAGE_TYPE: Unexpected #EscalateMessageType.
+ */
 typedef enum {
   ESCALATE_MODULE_ERROR_UNKNOWN_ARG = 1,
   ESCALATE_MODULE_ERROR_NO_USERNAME,
@@ -32,6 +40,18 @@ typedef enum {
   ESCALATE_MODULE_ERROR_MESSAGE_TYPE,
 } EscalateModuleError;
 
+/**
+ * EscalateModule:
+ * @pamh: PAM handle.
+ * @flags: PAM flags.
+ * @username: Username from pam_get_user().
+ * @use_first_pass: #TRUE if "use_first_pass" was in argument list.
+ * @try_first_pass: #TRUE if "try_first_pass" was in argument list.
+ * @conv: Conversation function from the application.
+ * @child: #EscalateSubprocess instance wrapping the helper subprocess.
+ * @keep_going: #TRUE if the finish message hasn't been received.
+ * @result: PAM status like PAM_SUCCESS or PAM_AUTH_ERR from the finish message.
+ */
 typedef struct {
   pam_handle_t *pamh;
   int flags;

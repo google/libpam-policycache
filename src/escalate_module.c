@@ -74,6 +74,8 @@ EscalateModule *EscalateModuleNew(pam_handle_t *pamh, int flags, int argc,
   }
   self->username = g_strdup(username);
 
+  // TODO(vonhollen): Handle SIGCHLD for this process without messing up an
+  // existing handler.
   self->child = EscalateSubprocessNew(NULL, error);
   if (!self->child)
     goto failed;
