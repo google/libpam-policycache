@@ -17,7 +17,16 @@
 #include "escalate_message.h"
 #include "escalate_subprocess.h"
 
+#include <sys/wait.h>
 
+
+/**
+ * EscalateSubprocessNew:
+ * @path: Full path to helper executable, or #NULL to use the default.
+ * @error: (out)(allow-none): Error return location or #NULL.
+ *
+ * Returns: New #EscalateSubprocess instance wrapping a running helper process.
+ */
 EscalateSubprocess *EscalateSubprocessNew(const gchar *path, GError **error) {
   GPid child_pid = 0;
   gint child_stdin_fd = 0;
@@ -55,16 +64,31 @@ void EscalateSubprocessUnref(EscalateSubprocess *self) {
   if (self->_refcount)
     return;
 
-  // TODO: Cleanup.
+  // TODO: Cleanup process.
 }
 
 
+/**
+ * EscalateSubprocessSend:
+ * @self: Subprocess to send a message to.
+ * @message: Message to serialize and write to the process's stdin.
+ * @error: (out)(allow-none): Error return location or #NULL.
+ *
+ * Returns: #TRUE if the message was successfully written.
+ */
 gboolean EscalateSubprocessSend(EscalateSubprocess *self,
                                 EscalateMessage *message, GError **error) {
   return EscalateMessageWrite(message, self->child_stdin, error);
 }
 
 
+/**
+ * EscalateSubprocessRecv:
+ * @self: Subprocess to receive a message from.
+ * @error: (out)(allow-none): Error return location or #NULL.
+ *
+ * Returns: Message that was read from the process's stdout, or #NULL on error.
+ */
 EscalateMessage *EscalateSubprocessRecv(EscalateSubprocess *self,
                                         GError **error) {
   return EscalateMessageRead(self->child_stdout, error);
