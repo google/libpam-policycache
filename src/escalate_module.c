@@ -24,6 +24,7 @@
 #include <stdlib.h>
 #include <syslog.h>
 
+// TODO(vonhollen): Include PAM_AUTHTOK, right?
 static gint escalate_module_include_items [] = {
   PAM_TTY, PAM_RUSER, PAM_RHOST, PAM_XDISPLAY, PAM_AUTHTOK_TYPE
 };
@@ -112,8 +113,6 @@ failed:
  * with dlopen().
  */
 void EscalateModuleFree(EscalateModule *self) {
-  // TODO(vonhollen): Make sure the subprocess is dead and reset any changes to
-  // signal handlers done in EscalateModuleNew().
   if (self->child)
     EscalateSubprocessUnref(self->child);
   g_free(self->username);
