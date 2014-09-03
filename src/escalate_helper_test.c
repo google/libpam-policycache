@@ -66,14 +66,17 @@ static void AssertMessage(GIOChannel *channel, const gchar *expected_str) {
 
 static gpointer RunHelperThreadFunc(EscalateHelper *helper) {
   GError *error = NULL;
+
   if (!EscalateHelperHandleStart(helper, &error)) {
     g_print("EscalateHelperHandleStart failed: %s (%s, %d)", error->message,
               g_quark_to_string(error->domain), error->code);
     goto done;
   }
+
   if (!EscalateHelperDoAction(helper, &error)) {
     g_print("EscalateHelperDoAction failed: %s (%s, %d)", error->message,
               g_quark_to_string(error->domain), error->code);
+    goto done;
   }
 
 done:
