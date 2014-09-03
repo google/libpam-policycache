@@ -45,12 +45,39 @@ static gchar *mock_auth_success_expect [] = {
   "(1, <(1, 0, 'janedoe', {3: @ms '/dev/pts/9000'})>)",
   "(3, <(@ms 'testpass', 0)>)",
   "(3, <(@ms nothing, 0)>)",
+  NULL,
 };
 
 static gchar *mock_auth_success_respond [] = {
   "(2, <(1, 'Password: ')>)",
   "(2, <(4, 'Success!')>)",
   "(4, <(0,)>)",
+  NULL,
+};
+
+static gchar *mock_auth_system_err_respond [] = {
+  "(2, <(1, 'Password: ')>)",
+  "(2, <(4, 'Success!')>)",
+  NULL,
+};
+
+static MockConversationMessage mock_auth_err_messages [] = {
+  { PAM_PROMPT_ECHO_OFF, "Password: ", "badpass" },
+  { PAM_ERROR_MSG, "Failed!", NULL },
+};
+
+static gchar *mock_auth_err_expect [] = {
+  "(1, <(1, 0, 'janedoe', {3: @ms '/dev/pts/9001'})>)",
+  "(3, <(@ms 'badpass', 0)>)",
+  "(3, <(@ms nothing, 0)>)",
+  NULL,
+};
+
+static gchar *mock_auth_err_respond [] = {
+  "(2, <(1, 'Password: ')>)",
+  "(2, <(3, 'Failed!')>)",
+  "(4, <(7,)>)",
+  NULL,
 };
 
 
@@ -130,11 +157,58 @@ void TestAuthSuccess() {
 }
 
 
+void TestAuthErr() {
+  pam_handle_t *handle = NULL;
+  int status = PAM_SYSTEM_ERR;
+  struct pam_conv conversation = {
+    MockConversationCallback, MockConversationNew(mock_auth_err_messages) };
+  EscalateTestSetMockHelperMessages(mock_auth_err_expect,
+                                    mock_auth_err_respond);
+
+  status = pam_start("mockservice", "janedoe", &conversation, &handle);
+  g_assert_cmpint(PAM_SUCCESS, ==, status);
+
+  status = pam_set_item(handle, PAM_TTY, "/dev/pts/9001");
+  g_assert_cmpint(PAM_SUCCESS, ==, status);
+
+  status = EscalateModuleMain(ESCALATE_MESSAGE_ACTION_AUTHENTICATE, handle, 0,
+                              0, NULL);
+  g_assert_cmpint(PAM_AUTH_ERR, ==, status);
+
+  MockConversationAssertFinished(&conversation);
+  pam_end(handle, PAM_AUTH_ERR);
+}
+
+
+void TestAuthSystemErr() {
+  pam_handle_t *handle = NULL;
+  int status = PAM_SYSTEM_ERR;
+  struct pam_conv conversation = {
+    MockConversationCallback, MockConversationNew(mock_auth_success_messages) };
+  EscalateTestSetMockHelperMessages(mock_auth_success_expect,
+                                    mock_auth_system_err_respond);
+
+  status = pam_start("mockservice", "janedoe", &conversation, &handle);
+  g_assert_cmpint(PAM_SUCCESS, ==, status);
+
+  status = pam_set_item(handle, PAM_TTY, "/dev/pts/9000");
+  g_assert_cmpint(PAM_SUCCESS, ==, status);
+
+  status = EscalateModuleMain(ESCALATE_MESSAGE_ACTION_AUTHENTICATE, handle, 0,
+                              0, NULL);
+  g_assert_cmpint(PAM_SYSTEM_ERR, ==, status);
+
+  MockConversationAssertFinished(&conversation);
+  pam_end(handle, PAM_SYSTEM_ERR);
+}
+
+
 int main(int argc, char **argv) {
   CacheTestInit();
   CacheTestInitUsersAndGroups();
   g_test_init(&argc, &argv, NULL);
   g_test_add_func("/escalate_module_test/TestAuthSuccess", TestAuthSuccess);
-  // TODO(vonhollen): More tests!
+  g_test_add_func("/escalate_module_test/TestAuthErr", TestAuthErr);
+  g_test_add_func("/escalate_module_test/TestAuthSystemErr", TestAuthSystemErr);
   return g_test_run();
 }
