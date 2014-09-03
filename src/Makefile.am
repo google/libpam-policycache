@@ -33,10 +33,12 @@ pam_escalate_la_LDFLAGS = -shared -module -avoid-version \
 
 
 # The setuid helper for pam_escalate.
-# TODO(vonhollen): Call chmod in install hook.
 bin_PROGRAMS = pam-escalate-helper
 pam_escalate_helper_SOURCES = escalate_helper.c escalate_helper.h
 pam_escalate_helper_LDADD = libescalate.la
+
+install-exec-hook:
+	chmod u+s $(DESTDIR)$(bindir)/pam-escalate-helper
 
 
 # Library and flags used for tests and to mock some libc/glib methods.
