@@ -108,14 +108,14 @@ static EscalateMessage *EscalateHelperRecv(EscalateHelper *self,
 
 
 /**
- * EscalateHelperCheckUsername:
+ * EscalateHelperIsUserAllowed:
  * @self: #EscalateHelper instance.
  * @error: (out)(allow-none): Error return location or #NULL.
  *
  * Returns: #TRUE if it's safe to try authentication for the user specified in
  * the start message.
  */
-static gboolean EscalateHelperCheckUsername(EscalateHelper *self,
+static gboolean EscalateHelperIsUserAllowed(EscalateHelper *self,
                                             GError **error) {
   struct passwd *user = NULL;
   g_assert(self->username);
@@ -169,9 +169,8 @@ gboolean EscalateHelperHandleStart(EscalateHelper *self, GError **error) {
   EscalateMessageGetValues(message, &self->action, &self->flags,
                            &self->username, &items);
 
-  if (!EscalateHelperCheckUsername(self, error)) {
+  if (!EscalateHelperIsUserAllowed(self, error))
     goto done;
-  }
 
   // TODO(vonhollen): Safely allow calls to multiple services.
   pam_status = pam_start(ESCALATE_SERVICE_NAME, self->username, &self->conv,
