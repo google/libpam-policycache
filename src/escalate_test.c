@@ -172,11 +172,13 @@ char **__wrap_pam_getenvlist(MockPamHandle *self) {
 
 void __wrap_pam_syslog(MockPamHandle *self, gint priority, const gchar *format,
                        ...) {
-  GLogLevelFlags log_level = G_LOG_LEVEL_WARNING;
   va_list args;
   va_start(args, format);
-  g_logv(G_LOG_DOMAIN, log_level, format, args);
+  gchar *message = g_strdup_vprintf(format, args);
   va_end(args);
+
+  g_test_message("pam syslog at level %d: %s", priority, message);
+  g_free(message);
 }
 
 
@@ -277,9 +279,6 @@ void EscalateTestSetMockHelperMessages(gchar **expected_messages,
 static int EscalateTestMockHelperProcess(int stdin_fd, int stdout_fd) {
   GIOChannel *stdin_stream = g_io_channel_unix_new(stdin_fd);
   GIOChannel *stdout_stream = g_io_channel_unix_new(stdout_fd);
-  EscalateMessage *expected = NULL;
-  EscalateMessage *message = NULL;
-  EscalateMessage *response = NULL;
   GError *error = NULL;
   gboolean success = FALSE;
 
@@ -287,6 +286,10 @@ static int EscalateTestMockHelperProcess(int stdin_fd, int stdout_fd) {
   g_assert(mock_helper_response_messages);
 
   for (guint i = 0; i < g_strv_length(mock_helper_expected_messages); i++) {
+    EscalateMessage *expected = NULL;
+    EscalateMessage *message = NULL;
+    EscalateMessage *response = NULL;
+
     expected = EscalateMessageLoad(mock_helper_expected_messages[i], &error);
     g_assert_no_error(error);
     g_assert(expected);
@@ -295,9 +298,11 @@ static int EscalateTestMockHelperProcess(int stdin_fd, int stdout_fd) {
     g_assert_no_error(error);
     g_assert(message);
 
-    response = EscalateMessageLoad(mock_helper_response_messages[i], &error);
-    g_assert_no_error(error);
-    g_assert(response);
+    if (mock_helper_response_messages[i]) {
+      response = EscalateMessageLoad(mock_helper_response_messages[i], &error);
+      g_assert_no_error(error);
+      g_assert(response);
+    }
 
     g_assert_cmpint(expected->type, ==, message->type);
     if (!g_variant_equal(expected->values, message->values)) {
@@ -310,13 +315,15 @@ static int EscalateTestMockHelperProcess(int stdin_fd, int stdout_fd) {
       g_error("Message values didn't match what was expected");
     }
 
-    success = EscalateMessageWrite(response, stdout_stream, &error);
-    g_assert_no_error(error);
-    g_assert(success);
+    if (response) {
+      success = EscalateMessageWrite(response, stdout_stream, &error);
+      g_assert_no_error(error);
+      g_assert(success);
+      EscalateMessageUnref(response);
+    }
 
     EscalateMessageUnref(expected);
     EscalateMessageUnref(message);
-    EscalateMessageUnref(response);
   }
 
   g_io_channel_shutdown(stdin_stream, FALSE, NULL);

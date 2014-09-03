@@ -101,6 +101,10 @@ escalate_message_test_SOURCES = escalate_message_test.c
 escalate_message_test_LDADD = libescalate.la
 escalate_message_test_LDFLAGS = -no-install $(AM_LDFLAGS)
 
+escalate_subprocess_test_SOURCES = escalate_subprocess_test.c
+escalate_subprocess_test_LDADD = libescalate.la
+escalate_subprocess_test_LDFLAGS = -no-install $(AM_LDFLAGS)
+
 escalate_module_test_SOURCES = escalate_module.c escalate_module.h \
 			       escalate_module_test.c
 escalate_module_test_LDADD = libescalate.la libescalatetest.la libtest.la
@@ -116,5 +120,6 @@ escalate_helper_test_LDFLAGS = -no-install $(AM_LDFLAGS) $(MOCK_FLAGS) \
 escalate_helper_test_CFLAGS = -DESCALATE_HELPER_TESTING=1 $(AM_CFLAGS)
 
 check_PROGRAMS = util_test entry_test storage_test policy_test module_test \
-		 escalate_message_test escalate_helper_test escalate_module_test
+		 escalate_message_test escalate_subprocess_test \
+		 escalate_helper_test escalate_module_test
 TESTS = $(check_PROGRAMS)
