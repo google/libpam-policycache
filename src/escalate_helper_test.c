@@ -103,6 +103,16 @@ static EscalateTestPrompt auth_success_prompts [] = {
   { 0, NULL, NULL },
 };
 
+static EscalateTestPrompt auth_err_prompts [] = {
+  { PAM_PROMPT_ECHO_OFF, "Password: ", "testpass" },
+  { PAM_TEXT_INFO, "Failed!", NULL },
+  { 0, NULL, NULL },
+};
+
+static EscalateTestPrompt auth_wrong_user_prompts [] = {
+  { 0, NULL, NULL },
+};
+
 
 void TestAuthSuccess() {
   EscalateHelper *helper = NULL;
@@ -131,11 +141,63 @@ void TestAuthSuccess() {
 }
 
 
+void TestAuthErr() {
+  EscalateHelper *helper = NULL;
+  GIOChannel *stdin_writer = NULL;
+  GIOChannel *stdout_reader = NULL;
+  GThread *helper_thread = NULL;
+
+  EscalateTestSetIds(100, 0, 100, 0);
+  EscalateTestMockAuthenticate(auth_err_prompts, PAM_AUTH_ERR);
+
+  CreateHelper(&helper, &stdin_writer, &stdout_reader);
+  helper_thread = RunHelperThread(helper);
+
+  WriteMessage(stdin_writer,
+               "(1, <(1, 0, 'janedoe', {3: @ms '/dev/pts/9000'})>)");
+  AssertMessage(stdout_reader, "(2, <(1, 'Password: ')>)");
+  WriteMessage(stdin_writer, "(3, <(@ms 'testpass', 0)>)");
+  AssertMessage(stdout_reader, "(2, <(4, 'Failed!')>)");
+  WriteMessage(stdin_writer, "(3, <(@ms nothing, 0)>)");
+  AssertMessage(stdout_reader, "(4, <(7,)>)");
+
+  JoinHelperThread(helper_thread);
+  EscalateHelperFree(helper);
+  g_io_channel_unref(stdin_writer);
+  g_io_channel_unref(stdout_reader);
+}
+
+
+static void TestWrongUser() {
+  EscalateHelper *helper = NULL;
+  GIOChannel *stdin_writer = NULL;
+  GIOChannel *stdout_reader = NULL;
+  GThread *helper_thread = NULL;
+
+  EscalateTestSetIds(101, 0, 101, 0);
+  EscalateTestMockAuthenticate(auth_wrong_user_prompts, PAM_AUTH_ERR);
+
+  CreateHelper(&helper, &stdin_writer, &stdout_reader);
+  helper_thread = RunHelperThread(helper);
+
+  WriteMessage(stdin_writer,
+               "(1, <(1, 0, 'janedoe', {3: @ms '/dev/pts/9000'})>)");
+  AssertMessage(stdout_reader, "(4, <(4,)>)");
+
+  JoinHelperThread(helper_thread);
+  EscalateHelperFree(helper);
+  g_io_channel_unref(stdin_writer);
+  g_io_channel_unref(stdout_reader);
+}
+
+
 int main(int argc, char **argv) {
   CacheTestInit();
   CacheTestInitUsersAndGroups();
   g_test_init(&argc, &argv, NULL);
   g_test_add_func("/escalate_helper_test/TestAuthSuccess", TestAuthSuccess);
+  g_test_add_func("/escalate_helper_test/TestAuthErr", TestAuthErr);
+  g_test_add_func("/escalate_helper_test/TestWrongUser", TestWrongUser);
   // TODO(vonhollen): More tests!
   return g_test_run();
 }

@@ -150,10 +150,12 @@ static gboolean EscalateHelperCheckUsername(EscalateHelper *self,
  * @error: (out)(allow-none): Error return location or #NULL.
  *
  * Return: #TRUE if pam_start() was called and it's OK to call
- * EscalateHelperDoAction().
+ * EscalateHelperDoAction(). #FALSE if there was an error and the finish message
+ * was sent.
  */
 gboolean EscalateHelperHandleStart(EscalateHelper *self, GError **error) {
   EscalateMessage *message = NULL;
+  EscalateMessage *response = NULL;
   GVariantIter *items = NULL;
   int pam_status = PAM_SYSTEM_ERR;
   int item_type = -1;
@@ -167,8 +169,9 @@ gboolean EscalateHelperHandleStart(EscalateHelper *self, GError **error) {
   EscalateMessageGetValues(message, &self->action, &self->flags,
                            &self->username, &items);
 
-  if (!EscalateHelperCheckUsername(self, error))
+  if (!EscalateHelperCheckUsername(self, error)) {
     goto done;
+  }
 
   // TODO(vonhollen): Safely allow calls to multiple services.
   pam_status = pam_start(ESCALATE_SERVICE_NAME, self->username, &self->conv,
@@ -200,6 +203,12 @@ gboolean EscalateHelperHandleStart(EscalateHelper *self, GError **error) {
   result = TRUE;
 
 done:
+  if (!result) {
+    response = EscalateMessageNew(ESCALATE_MESSAGE_TYPE_FINISH, PAM_SYSTEM_ERR);
+    EscalateMessageWrite(response, self->writer, NULL);
+    EscalateMessageUnref(response);
+  }
+
   if (items)
     g_variant_iter_free(items);
   if (message)
