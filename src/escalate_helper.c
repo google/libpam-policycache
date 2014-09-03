@@ -112,6 +112,9 @@ static EscalateMessage *EscalateHelperRecv(EscalateHelper *self,
  * @self: #EscalateHelper instance.
  * @error: (out)(allow-none): Error return location or #NULL.
  *
+ * Root can run the helper for any user, and non-root users are only allowed to
+ * run the helper for themselves.
+ *
  * Returns: #TRUE if it's safe to try authentication for the user specified in
  * the start message.
  */
@@ -322,7 +325,7 @@ done:
  * of response structs. The caller must free() the array and the string value
  * in each response.
  *
- * Return: PAM_SUCCESS is each request was sent and each response was read using
+ * Return: PAM_SUCCESS if each request was sent and each response was read using
  * EscalateHelperPrompt(), or PAM_CONV_ERR if there was any problem.
  */
 int EscalateHelperConversation(int conv_len,
@@ -341,12 +344,13 @@ int EscalateHelperConversation(int conv_len,
 
   tmp_conv_responses = calloc(conv_len, sizeof(struct pam_response));
   g_assert(tmp_conv_responses);
-  memset(tmp_conv_responses, 0, sizeof(struct pam_response) * conv_len);
 
-  for (guint i = 0; i < conv_len && result == PAM_SUCCESS; i++) {
+  for (guint i = 0; i < conv_len; i++) {
     g_assert(conv_requests[i]);
     result = EscalateHelperPrompt(self, conv_requests[i],
                                   &tmp_conv_responses[i]);
+    if (result != PAM_SUCCESS)
+      break;
   }
 
   if (result == PAM_SUCCESS) {
@@ -372,7 +376,7 @@ int main(int argc, char **argv) {
   int exit_code = 2;
 
   clearenv();
-  umask(077);
+  umask(0077);
 
   context = g_option_context_new("- helper for pam_escalate.so");
   if (!g_option_context_parse(context, &argc, &argv, &error)) {
