@@ -162,6 +162,13 @@ gboolean EscalateHelperHandleStart(EscalateHelper *self, GError **error) {
   const gchar *item_value = NULL;
   gboolean result = FALSE;
 
+  // Support EscalateHelperHandleStart() being called multiple times.
+  self->action = ESCALATE_MESSAGE_ACTION_UNKNOWN;
+  self->flags = 0;
+  g_free(self->username);
+  self->username = NULL;
+  self->result = PAM_SYSTEM_ERR;
+
   message = EscalateHelperRecv(self, ESCALATE_MESSAGE_TYPE_START, error);
   if (!message)
     goto done;
@@ -234,8 +241,12 @@ gboolean EscalateHelperDoAction(EscalateHelper *self, GError **error) {
       self->result = pam_authenticate(self->pamh, self->flags);
       break;
     default:
+      self->result = PAM_SYSTEM_ERR;
       g_error("Unsupported action %d", self->action);
   }
+
+  // Prevents this function from being run twice.
+  self->action = ESCALATE_MESSAGE_ACTION_UNKNOWN;
 
   message = EscalateMessageNew(ESCALATE_MESSAGE_TYPE_FINISH, self->result);
   success = EscalateMessageWrite(message, self->writer, error);
