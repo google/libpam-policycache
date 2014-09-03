@@ -24,6 +24,8 @@
 #include <stdlib.h>
 #include <syslog.h>
 
+#define ESCALATE_MODULE_SHUTDOWN_TIMEOUT 10000
+
 // TODO(vonhollen): Include PAM_AUTHTOK, right?
 static gint escalate_module_include_items [] = {
   PAM_TTY, PAM_RUSER, PAM_RHOST, PAM_XDISPLAY, PAM_AUTHTOK_TYPE
@@ -252,6 +254,10 @@ done:
 static gboolean EscalateModuleHandleFinish(EscalateModule *self,
                                            EscalateMessage *message,
                                            GError **error) {
+  if (!EscalateSubprocessShutdown(self->child, ESCALATE_MODULE_SHUTDOWN_TIMEOUT,
+                                  error)) {
+    return FALSE;
+  }
   EscalateMessageGetValues(message, &self->result);
   self->keep_going = FALSE;
   return TRUE;
