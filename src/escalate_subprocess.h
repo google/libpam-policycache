@@ -21,6 +21,14 @@
 
 #include <glib.h>
 
+#define ESCALATE_SUBPROCESS_ERROR _EscalateSubprocessErrorQuark()
+
+typedef enum {
+  ESCALATE_SUBPROCESS_ERROR_SHUTDOWN_TIMEOUT,
+  ESCALATE_SUBPROCESS_ERROR_KILLED,
+  ESCALATE_SUBPROCESS_ERROR_LEFTOVER_STDOUT,
+} EscalateSubprocessError;
+
 typedef struct {
   gint _refcount;
   GPid child_pid;
@@ -33,9 +41,14 @@ EscalateSubprocess *EscalateSubprocessNew(const gchar *path, GError **error);
 void EscalateSubprocessRef(EscalateSubprocess *self);
 void EscalateSubprocessUnref(EscalateSubprocess *self);
 
+gboolean EscalateSubprocessShutdown(EscalateSubprocess *self, guint timeout_ms,
+                                    GError **error);
+
 gboolean EscalateSubprocessSend(EscalateSubprocess *self,
                                 EscalateMessage *message, GError **error);
 EscalateMessage *EscalateSubprocessRecv(EscalateSubprocess *self,
                                         GError **error);
+
+GQuark _EscalateSubprocessErrorQuark();
 
 #endif
