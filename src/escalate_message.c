@@ -145,7 +145,7 @@ EscalateMessage *EscalateMessageRead(GIOChannel *stream, GError **error) {
                   "Failed to read next message from stream");
       goto done;
     case G_IO_STATUS_ERROR:
-      goto done;
+      goto done;  // *error is already set by g_io_channel_read_line().
     default:
       g_error("Unexpected status from g_io_channel_read_line");
   }
