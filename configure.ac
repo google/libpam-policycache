@@ -10,6 +10,7 @@ AC_PROG_CC_STDC
 AM_PROG_CC_C_O
 
 # Checks for libraries.
+AM_PROG_AR
 LT_INIT
 PKG_CHECK_MODULES([GLIB], [glib-2.0 >= 2.32.4])
 
