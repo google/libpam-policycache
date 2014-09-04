@@ -276,5 +276,5 @@ pam_sm_chauthtok(
 
 GQuark
 _CacheModuleErrorQuark() {
-  return g_quark_from_static_string("cache-module-error-quark");
+  return g_quark_from_string("cache-module-error-quark");
 }
