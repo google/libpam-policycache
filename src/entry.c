@@ -287,5 +287,5 @@ gboolean CacheEntryPasswordValidate(CacheEntry *self, const gchar *password,
 
 GQuark
 _CacheEntryErrorQuark() {
-  return g_quark_from_static_string("cache-entry-error-quark");
+  return g_quark_from_string("cache-entry-error-quark");
 }

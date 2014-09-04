@@ -160,5 +160,5 @@ done:
 
 GQuark
 _CacheStorageErrorQuark() {
-  return g_quark_from_static_string("cache-storage-error-quark");
+  return g_quark_from_string("cache-storage-error-quark");
 }

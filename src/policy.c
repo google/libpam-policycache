@@ -359,5 +359,5 @@ gboolean CachePolicyShouldRenew(CachePolicy *self, CacheEntry *entry,
 
 GQuark
 _CachePolicyErrorQuark() {
-  return g_quark_from_static_string("cache-policy-error-quark");
+  return g_quark_from_string("cache-policy-error-quark");
 }
