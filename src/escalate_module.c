@@ -372,6 +372,8 @@ done:
 PAM_EXTERN int
 pam_sm_authenticate(
     pam_handle_t *pamh, int flags, int argc, const char **argv) {
+  // TODO(vonhollen): Pass in env variables and existing password.
+  // TODO(vonhollen): Leave helper open for cleanup later.
   return EscalateModuleMain(ESCALATE_MESSAGE_ACTION_AUTHENTICATE, pamh, flags,
                             argc, argv);
 }
@@ -380,6 +382,7 @@ pam_sm_authenticate(
 PAM_EXTERN int
 pam_sm_setcred(
     pam_handle_t *pamh, int flags, int argc, const char **argv) {
+  // TODO(vonhollen): Call setcred in helper (if exists) and decref.
   return PAM_IGNORE;
 }
 

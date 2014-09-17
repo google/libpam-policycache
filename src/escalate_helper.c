@@ -389,6 +389,8 @@ int main(int argc, char **argv) {
     goto done;
   }
 
+  // TODO(vonhollen): Save getuid/gid() values and give to EscalateHelperNew.
+  // TODO(vonhollen): Call setuid(0) and setgid(0).
   helper = EscalateHelperNew(STDIN_FILENO, STDOUT_FILENO);
 
   if (!EscalateHelperHandleStart(helper, &error)) {
