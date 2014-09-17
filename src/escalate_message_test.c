@@ -20,10 +20,10 @@
 #include <string.h>
 
 static const gchar *example_messages [] = {
-  "(1, <(1, 0, 'testuser', {2: @ms 'testuser'})>)",
+  "(1, <(1, 0, 'testuser', {2: @ms 'testuser'}, {'PATH': '/path'})>)",
   "(2, <(1, 'Password: ')>)",
   "(3, <(@ms 'testpass', 0)>)",
-  "(4, <(0,)>)",
+  "(4, <(0, {'PATH': '/path'})>)",
 };
 
 static const EscalateMessageType example_message_types [] = {
@@ -36,17 +36,22 @@ static const EscalateMessageType example_message_types [] = {
 
 static GVariant *CreateExampleMessageValues(guint example_message_index) {
   GVariantBuilder items;
+  GVariantBuilder env;
   switch (example_message_index) {
     case 0:
       g_variant_builder_init(&items, G_VARIANT_TYPE_ARRAY);
       g_variant_builder_add(&items, "{ims}", 2, "testuser");
-      return g_variant_new("(iisa{ims})", 1, 0, "testuser", &items);
+      g_variant_builder_init(&env, G_VARIANT_TYPE_ARRAY);
+      g_variant_builder_add(&env, "{ss}", "PATH", "/path");
+      return g_variant_new("(iisa{ims}a{ss})", 1, 0, "testuser", &items, &env);
     case 1:
       return g_variant_new("(is)", 1, "Password: ");
     case 2:
       return g_variant_new("(msi)", "testpass", 0);
     case 3:
-      return g_variant_new("(i)", 0);
+      g_variant_builder_init(&env, G_VARIANT_TYPE_ARRAY);
+      g_variant_builder_add(&env, "{ss}", "PATH", "/path");
+      return g_variant_new("(ia{ss})", 0, &env);
     default:
       g_error("No message available for index %d", example_message_index);
       return NULL;  // Never reached.
@@ -57,6 +62,7 @@ static GVariant *CreateExampleMessageValues(guint example_message_index) {
 static void TestNew(gconstpointer user_data) {
   guint index = GPOINTER_TO_UINT(user_data);
   GVariantBuilder items;
+  GVariantBuilder env;
   EscalateMessage *message = NULL;
   GVariant *expected_values = CreateExampleMessageValues(index);
 
@@ -64,8 +70,10 @@ static void TestNew(gconstpointer user_data) {
     case 0:
       g_variant_builder_init(&items, G_VARIANT_TYPE_ARRAY);
       g_variant_builder_add(&items, "{ims}", 2, "testuser");
+      g_variant_builder_init(&env, G_VARIANT_TYPE_ARRAY);
+      g_variant_builder_add(&env, "{ss}", "PATH", "/path");
       message = EscalateMessageNew(ESCALATE_MESSAGE_TYPE_START, 1, 0,
-                                   "testuser", &items);
+                                   "testuser", &items, &env);
       break;
     case 1:
       message = EscalateMessageNew(ESCALATE_MESSAGE_TYPE_CONV_MESSAGE, 1,
@@ -76,7 +84,9 @@ static void TestNew(gconstpointer user_data) {
                                    "testpass", 0);
       break;
     case 3:
-      message = EscalateMessageNew(ESCALATE_MESSAGE_TYPE_FINISH, 0);
+      g_variant_builder_init(&env, G_VARIANT_TYPE_ARRAY);
+      g_variant_builder_add(&env, "{ss}", "PATH", "/path");
+      message = EscalateMessageNew(ESCALATE_MESSAGE_TYPE_FINISH, 0, &env);
       break;
     default:
       g_error("No message available for index %d", index);
@@ -98,24 +108,35 @@ static void TestGetValues(gconstpointer user_data) {
   gint action = 0;
   gint flags = 0;
   gchar *username = NULL;
-  gint key = 0;
   gchar *value = NULL;
-  GVariantIter *iter = NULL;
+  gint item_key = 0;
+  gchar *item_value = NULL;
+  GVariantIter *items_iter = NULL;
+  gchar *env_key = NULL;
+  gchar *env_value = NULL;
+  GVariantIter *env_iter = NULL;
 
   message = EscalateMessageLoad(example_messages[index], NULL);
   g_assert(message);
 
   switch (index) {
     case 0:
-      EscalateMessageGetValues(message, &action, &flags, &username, &iter);
+      EscalateMessageGetValues(message, &action, &flags, &username, &items_iter,
+                               &env_iter);
       g_assert_cmpint(1, ==, action);
       g_assert_cmpint(0, ==, flags);
       g_assert_cmpstr("testuser", ==, username);
-      g_assert(g_variant_iter_next(iter, "{ims}", &key, &value));
-      g_assert_cmpint(2, ==, key);
-      g_assert_cmpstr("testuser", ==, value);
-      g_assert(!g_variant_iter_next(iter, "{ims}", NULL, NULL));
-      g_variant_iter_free(iter);
+      g_assert(g_variant_iter_next(items_iter, "{ims}", &item_key,
+                                   &item_value));
+      g_assert_cmpint(2, ==, item_key);
+      g_assert_cmpstr("testuser", ==, item_value);
+      g_assert(!g_variant_iter_next(items_iter, "{ims}", NULL, NULL));
+      g_variant_iter_free(items_iter);
+      g_assert(g_variant_iter_next(env_iter, "{ss}", &env_key, &env_value));
+      g_assert_cmpstr("PATH", ==, env_key);
+      g_assert_cmpstr("/path", ==, env_value);
+      g_assert(!g_variant_iter_next(env_iter, "{ss}", NULL, NULL));
+      g_variant_iter_free(env_iter);
       break;
     case 1:
       EscalateMessageGetValues(message, &flags, &value);
@@ -128,8 +149,13 @@ static void TestGetValues(gconstpointer user_data) {
       g_assert_cmpint(0, ==, flags);
       break;
     case 3:
-      EscalateMessageGetValues(message, &flags);
+      EscalateMessageGetValues(message, &flags, &env_iter);
       g_assert_cmpint(0, ==, flags);
+      g_assert(g_variant_iter_next(env_iter, "{ss}", &env_key, &env_value));
+      g_assert_cmpstr("PATH", ==, env_key);
+      g_assert_cmpstr("/path", ==, env_value);
+      g_assert(!g_variant_iter_next(env_iter, "{ss}", NULL, NULL));
+      g_variant_iter_free(env_iter);
       break;
     default:
       g_error("No message available for index %d", index);
@@ -137,6 +163,9 @@ static void TestGetValues(gconstpointer user_data) {
 
   g_free(username);
   g_free(value);
+  g_free(item_value);
+  g_free(env_key);
+  g_free(env_value);
   EscalateMessageUnref(message);
 }
 
