@@ -125,3 +125,5 @@ check_PROGRAMS = util_test entry_test storage_test policy_test module_test \
 		 escalate_message_test escalate_subprocess_test \
 		 escalate_helper_test escalate_module_test
 TESTS = $(check_PROGRAMS)
+
+noinst_PROGRAMS = pam_test_tool
