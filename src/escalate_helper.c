@@ -262,6 +262,7 @@ done:
  * sent.
  */
 gboolean EscalateHelperDoAction(EscalateHelper *self, GError **error) {
+  int setcred_result = PAM_SUCCESS;
   EscalateMessage *message = NULL;
   gchar **env_lines = NULL;
   GVariantBuilder env;
@@ -271,6 +272,18 @@ gboolean EscalateHelperDoAction(EscalateHelper *self, GError **error) {
   switch (self->action) {
     case ESCALATE_MESSAGE_ACTION_AUTHENTICATE:
       self->result = pam_authenticate(self->pamh, self->flags);
+      if (self->result == PAM_SUCCESS || self->result == PAM_NEW_AUTHTOK_REQD) {
+        // Refresh things like Kerberos credentials. This is safe to do here
+        // even if the client never calls pam_setcred() because the entire auth
+        // stack succeeded.
+        // TODO(vonhollen): Make this configurable by pam_escalate.so.
+        setcred_result = pam_setcred(self->pamh, PAM_REFRESH_CRED);
+        if (setcred_result != PAM_SUCCESS) {
+          pam_syslog(self->pamh, LOG_NOTICE,
+                     "pam_setcred() failed for user '%s': %s",
+                     self->username, pam_strerror(self->pamh, setcred_result));
+        }
+      }
       break;
     default:
       self->result = PAM_SYSTEM_ERR;

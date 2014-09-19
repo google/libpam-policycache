@@ -239,6 +239,13 @@ int __wrap_pam_authenticate(MockPamHandle *self, int flags) {
 }
 
 
+int __wrap_pam_setcred(MockPamHandle *self, int flags) {
+  g_assert(self);
+  g_assert(flags == PAM_REFRESH_CRED);
+  return PAM_SUCCESS;
+}
+
+
 void EscalateTestSetIds(uid_t ruid, uid_t euid, gid_t rgid, gid_t egid) {
   mock_ruid = ruid;
   mock_euid = euid;

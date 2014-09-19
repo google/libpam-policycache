@@ -67,6 +67,7 @@ ESCALATE_MOCK_FLAGS = -Wl,--wrap,pam_start \
 		      -Wl,--wrap,pam_getenvlist \
 		      -Wl,--wrap,pam_syslog \
 		      -Wl,--wrap,pam_authenticate \
+		      -Wl,--wrap,pam_setcred \
 		      -Wl,--wrap,g_spawn_async_with_pipes \
 		      -Wl,--wrap,getuid \
 		      -Wl,--wrap,geteuid \
