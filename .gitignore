@@ -16,5 +16,6 @@ src/*.lo
 src/*.la
 src/*_test
 src/pam-escalate-helper
+src/pam_test_tool
 
 libpam-policycache-*.tar.gz
