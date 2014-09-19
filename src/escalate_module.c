@@ -266,6 +266,7 @@ static gboolean EscalateModuleHandleFinish(EscalateModule *self,
                                            EscalateMessage *message,
                                            GError **error) {
   GVariantIter *env_iter = NULL;
+  gboolean result = FALSE;
   self->keep_going = FALSE;
 
   if (!EscalateSubprocessShutdown(self->child, ESCALATE_MODULE_SHUTDOWN_TIMEOUT,
@@ -274,7 +275,9 @@ static gboolean EscalateModuleHandleFinish(EscalateModule *self,
   }
 
   EscalateMessageGetValues(message, &self->result, &env_iter);
-  return EscalateUtilPamEnvFromVariant(self->pamh, env_iter, error);
+  result = EscalateUtilPamEnvFromVariant(self->pamh, env_iter, error);
+  g_variant_iter_free(env_iter);
+  return result;
 }
 
 

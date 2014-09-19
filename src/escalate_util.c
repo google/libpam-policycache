@@ -88,7 +88,6 @@ gboolean EscalateUtilPamEnvFromVariant(pam_handle_t *pamh, GVariantIter *iter,
     g_free(key_and_value);
   }
 
-  g_variant_iter_free(iter);
   return result;
 }
 

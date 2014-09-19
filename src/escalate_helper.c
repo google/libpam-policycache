@@ -228,6 +228,8 @@ done:
 
   if (items)
     g_variant_iter_free(items);
+  if (env)
+    g_variant_iter_free(env);
   if (message)
     EscalateMessageUnref(message);
   return result;
@@ -284,6 +286,7 @@ gboolean EscalateHelperDoAction(EscalateHelper *self, GError **error) {
   message = EscalateMessageNew(ESCALATE_MESSAGE_TYPE_FINISH, self->result, env);
   result = EscalateMessageWrite(message, self->writer, error);
   EscalateMessageUnref(message);
+  g_variant_builder_unref(env);
 
 done:
   return result;
