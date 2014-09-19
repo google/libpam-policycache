@@ -29,7 +29,7 @@ static void CreateHelper(EscalateHelper **helper, GIOChannel **stdin_writer,
   g_assert(g_unix_open_pipe(stdin_fds, 0, NULL));
   g_assert(g_unix_open_pipe(stdout_fds, 0, NULL));
 
-  *helper = EscalateHelperNew(stdin_fds[0], stdout_fds[1]);
+  *helper = EscalateHelperNew(stdin_fds[0], stdout_fds[1], getuid(), getgid());
   *stdin_writer = g_io_channel_unix_new(stdin_fds[1]);
   *stdout_reader = g_io_channel_unix_new(stdout_fds[0]);
 

@@ -23,6 +23,7 @@
 
 #include <glib.h>
 #include <security/pam_appl.h>
+#include <unistd.h>
 
 #define ESCALATE_SERVICE_NAME "escalate"
 
@@ -40,6 +41,8 @@ typedef enum {
 typedef struct {
   GIOChannel *reader;
   GIOChannel *writer;
+  uid_t caller_uid;
+  gid_t caller_gid;
   gchar *username;
   pam_handle_t *pamh;
   int flags;
@@ -48,7 +51,8 @@ typedef struct {
   int result;
 } EscalateHelper;
 
-EscalateHelper *EscalateHelperNew(int stdin_fd, int stdout_fd);
+EscalateHelper *EscalateHelperNew(int stdin_fd, int stdout_fd,
+                                  uid_t caller_uid, gid_t caller_gid);
 void EscalateHelperFree(EscalateHelper *self);
 
 gboolean EscalateHelperHandleStart(EscalateHelper *self, GError **error);

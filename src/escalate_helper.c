@@ -33,13 +33,18 @@
  *
  * Returns: New #EscalateHelper instance.
  */
-EscalateHelper *EscalateHelperNew(int stdin_fd, int stdout_fd) {
+EscalateHelper *EscalateHelperNew(int stdin_fd, int stdout_fd,
+                                  uid_t caller_uid, gid_t caller_gid) {
   EscalateHelper *self = g_new0(EscalateHelper, 1);
   self->reader = g_io_channel_unix_new(stdin_fd);
   self->writer = g_io_channel_unix_new(stdout_fd);
+  self->caller_uid = caller_uid;
+  self->caller_gid = caller_gid;
   self->conv.conv = EscalateHelperConversation;
   self->conv.appdata_ptr = self;
   self->result = PAM_SYSTEM_ERR;
+  g_assert(self->caller_uid >= 0);
+  g_assert(self->caller_gid >= 0);
   return self;
 }
 
@@ -123,7 +128,7 @@ static gboolean EscalateHelperIsUserAllowed(EscalateHelper *self,
   struct passwd *user = NULL;
   g_assert(self->username);
 
-  if (getuid() == 0)
+  if (self->caller_uid == 0 && self->caller_gid == 0)
     return TRUE;
 
   user = getpwnam(self->username);
@@ -134,12 +139,12 @@ static gboolean EscalateHelperIsUserAllowed(EscalateHelper *self,
     return FALSE;
   }
 
-  if (user->pw_uid != getuid()) {
+  if (user->pw_uid != self->caller_uid) {
     g_set_error(error, ESCALATE_HELPER_ERROR,
                 ESCALATE_HELPER_ERROR_PRIVILEGE_ERROR,
                 "Can't use escalate for user '%s' (uid=%d) when running as"
                 " another user (uid=%d)", self->username, user->pw_uid,
-                getuid());
+                self->caller_uid);
     return FALSE;
   }
 
@@ -413,6 +418,8 @@ int EscalateHelperConversation(int conv_len,
 int main(int argc, char **argv) {
   GError *error = NULL;
   GOptionContext *context = NULL;
+  uid_t orig_uid = -1;
+  gid_t orig_gid = -1;
   EscalateHelper *helper = NULL;
   int exit_code = 2;
 
@@ -430,9 +437,18 @@ int main(int argc, char **argv) {
     goto done;
   }
 
-  // TODO(vonhollen): Save getuid/gid() values and give to EscalateHelperNew.
-  // TODO(vonhollen): Call setuid(0) and setgid(0).
-  helper = EscalateHelperNew(STDIN_FILENO, STDOUT_FILENO);
+  orig_uid = getuid();
+  orig_gid = getgid();
+
+  if (orig_uid != geteuid()) {
+    setuid(geteuid());
+  }
+
+  if (orig_gid != getegid()) {
+    setgid(getegid());
+  }
+
+  helper = EscalateHelperNew(STDIN_FILENO, STDOUT_FILENO, orig_uid, orig_gid);
 
   if (!EscalateHelperHandleStart(helper, &error)) {
     goto done;
