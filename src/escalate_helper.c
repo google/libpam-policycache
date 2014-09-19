@@ -160,9 +160,12 @@ gboolean EscalateHelperHandleStart(EscalateHelper *self, GError **error) {
   EscalateMessage *message = NULL;
   EscalateMessage *response = NULL;
   GVariantIter *items = NULL;
+  GVariantIter *env = NULL;
   int pam_status = PAM_SYSTEM_ERR;
   int item_type = -1;
   const gchar *item_value = NULL;
+  const gchar *env_key = NULL;
+  const gchar *env_value = NULL;
   gboolean result = FALSE;
 
   // Support EscalateHelperHandleStart() being called multiple times.
@@ -177,7 +180,7 @@ gboolean EscalateHelperHandleStart(EscalateHelper *self, GError **error) {
     goto done;
 
   EscalateMessageGetValues(message, &self->action, &self->flags,
-                           &self->username, &items);
+                           &self->username, &items, &env);
 
   if (!EscalateHelperIsUserAllowed(self, error))
     goto done;
@@ -209,17 +212,35 @@ gboolean EscalateHelperHandleStart(EscalateHelper *self, GError **error) {
     }
   }
 
+  while (g_variant_iter_loop(env, "{&s&s}", &env_key, &env_value)) {
+    g_assert(env_key);
+    g_assert(env_value);
+    gchar *env_pair = g_strdup_printf("%s=%s", env_key, env_value);
+    pam_status = pam_putenv(self->pamh, env_pair);
+    g_free(env_pair);
+    if (pam_status != PAM_SUCCESS) {
+      g_set_error(error, ESCALATE_HELPER_ERROR,
+                  ESCALATE_HELPER_ERROR_SET_ENV_FAILED,
+                  "Failed to set environment variable '%s' to '%s'",
+                  env_key, env_value);
+      goto done;
+    }
+  }
+
   result = TRUE;
 
 done:
   if (!result) {
-    response = EscalateMessageNew(ESCALATE_MESSAGE_TYPE_FINISH, PAM_SYSTEM_ERR);
+    response = EscalateMessageNew(ESCALATE_MESSAGE_TYPE_FINISH, PAM_SYSTEM_ERR,
+                                  NULL);
     EscalateMessageWrite(response, self->writer, NULL);
     EscalateMessageUnref(response);
   }
 
   if (items)
     g_variant_iter_free(items);
+  if (env)
+    g_variant_iter_free(env);
   if (message)
     EscalateMessageUnref(message);
   return result;
@@ -237,8 +258,11 @@ done:
  */
 gboolean EscalateHelperDoAction(EscalateHelper *self, GError **error) {
   EscalateMessage *message = NULL;
+  gchar **env_lines = NULL;
+  GVariantBuilder env;
   gboolean success = FALSE;
 
+  // Run the action specified in the start message.
   switch (self->action) {
     case ESCALATE_MESSAGE_ACTION_AUTHENTICATE:
       self->result = pam_authenticate(self->pamh, self->flags);
@@ -248,10 +272,27 @@ gboolean EscalateHelperDoAction(EscalateHelper *self, GError **error) {
       g_error("Unsupported action %d", self->action);
   }
 
-  // Prevents this function from being run twice.
+  // Prevent this function from being run twice.
   self->action = ESCALATE_MESSAGE_ACTION_UNKNOWN;
 
-  message = EscalateMessageNew(ESCALATE_MESSAGE_TYPE_FINISH, self->result);
+  // Get the PAM environment to include in the result.
+  g_variant_builder_init(&env, G_VARIANT_TYPE_ARRAY);
+  env_lines = pam_getenvlist(self->pamh);
+  if (env_lines) {
+    for (guint i = 0; env_lines[i]; i++) {
+      gchar **env_pair = g_strsplit(env_lines[i], "=", 2);
+      if (env_pair[0] && env_pair[1]) {
+        g_variant_builder_add(&env, "{ss}", env_pair[0], env_pair[1]);
+      }
+      g_strfreev(env_pair);
+      free(env_lines[i]);
+    }
+    free(env_lines);
+  }
+
+  // Send the final PAM result for the action and the complete environment.
+  message = EscalateMessageNew(ESCALATE_MESSAGE_TYPE_FINISH, self->result,
+                               &env);
   success = EscalateMessageWrite(message, self->writer, error);
   EscalateMessageUnref(message);
   return success;

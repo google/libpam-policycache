@@ -130,12 +130,13 @@ void TestAuthSuccess() {
   helper_thread = RunHelperThread(helper);
 
   WriteMessage(stdin_writer,
-               "(1, <(1, 0, 'janedoe', {3: @ms '/dev/pts/9000'})>)");
+               "(1, <(1, 0, 'janedoe', {3: @ms '/dev/pts/9000'},"
+               " {'PATH': '/path'})>)");
   AssertMessage(stdout_reader, "(2, <(1, 'Password: ')>)");
   WriteMessage(stdin_writer, "(3, <(@ms 'testpass', 0)>)");
   AssertMessage(stdout_reader, "(2, <(4, 'Success!')>)");
   WriteMessage(stdin_writer, "(3, <(@ms nothing, 0)>)");
-  AssertMessage(stdout_reader, "(4, <(0,)>)");
+  AssertMessage(stdout_reader, "(4, <(0, {'PATH': '/path'})>)");
 
   JoinHelperThread(helper_thread);
   EscalateHelperFree(helper);
@@ -157,12 +158,13 @@ void TestAuthErr() {
   helper_thread = RunHelperThread(helper);
 
   WriteMessage(stdin_writer,
-               "(1, <(1, 0, 'janedoe', {3: @ms '/dev/pts/9000'})>)");
+               "(1, <(1, 0, 'janedoe', {3: @ms '/dev/pts/9000'},"
+               " {'PATH': '/path'})>)");
   AssertMessage(stdout_reader, "(2, <(1, 'Password: ')>)");
   WriteMessage(stdin_writer, "(3, <(@ms 'testpass', 0)>)");
   AssertMessage(stdout_reader, "(2, <(4, 'Failed!')>)");
   WriteMessage(stdin_writer, "(3, <(@ms nothing, 0)>)");
-  AssertMessage(stdout_reader, "(4, <(7,)>)");
+  AssertMessage(stdout_reader, "(4, <(7, {'PATH': '/path'})>)");
 
   JoinHelperThread(helper_thread);
   EscalateHelperFree(helper);
@@ -184,8 +186,9 @@ static void TestWrongUser() {
   helper_thread = RunHelperThread(helper);
 
   WriteMessage(stdin_writer,
-               "(1, <(1, 0, 'janedoe', {3: @ms '/dev/pts/9000'})>)");
-  AssertMessage(stdout_reader, "(4, <(4,)>)");
+               "(1, <(1, 0, 'janedoe', {3: @ms '/dev/pts/9000'},"
+               " {'PATH': '/path'})>)");
+  AssertMessage(stdout_reader, "(4, <(4, @a{ss} {})>)");
 
   JoinHelperThread(helper_thread);
   EscalateHelperFree(helper);
