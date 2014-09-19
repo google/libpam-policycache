@@ -80,6 +80,8 @@ static gpointer RunHelperThreadFunc(EscalateHelper *helper) {
   }
 
 done:
+  if (error)
+    g_error_free(error);
   g_io_channel_shutdown(helper->reader, FALSE, NULL);
   g_io_channel_shutdown(helper->writer, FALSE, NULL);
   return NULL;

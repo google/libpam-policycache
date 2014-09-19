@@ -163,15 +163,18 @@ static gboolean EscalateModuleStartAddItem(EscalateModule *self,
 static gboolean EscalateModuleStartAddEnv(GVariantBuilder *env,
                                           const gchar *env_line,
                                           GError **error) {
+  gboolean success = FALSE;
   gchar **env_line_parts = g_strsplit(env_line, "=", 2);
-  if (!env_line_parts[0] || !env_line_parts[1]) {
+  if (env_line_parts[0] && env_line_parts[1]) {
+    g_variant_builder_add(env, "{ss}", env_line_parts[0], env_line_parts[1]);
+    success = TRUE;
+  } else {
     g_set_error(error, ESCALATE_MODULE_ERROR,
                 ESCALATE_MODULE_ERROR_INVALID_ENVIRONMENT,
                 "Failed to parse line from pam_getenvlist(): %s", env_line);
-    return FALSE;
   }
-  g_variant_builder_add(env, "{ss}", env_line_parts[0], env_line_parts[1]);
-  return TRUE;
+  g_strfreev(env_line_parts);
+  return success;
 }
 
 
@@ -215,8 +218,15 @@ gboolean EscalateModuleStart(EscalateModule *self, EscalateMessageAction action,
     result = TRUE;
 
 done:
-  if (message)
+  if (pam_env_list) {
+    for (guint i = 0; pam_env_list[i]; i++) {
+      free(pam_env_list[i]);
+    }
+    free(pam_env_list);
+  }
+  if (message) {
     EscalateMessageUnref(message);
+  }
   g_variant_builder_unref(env);
   g_variant_builder_unref(items);
   return result;
