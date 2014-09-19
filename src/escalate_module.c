@@ -153,32 +153,6 @@ static gboolean EscalateModuleStartAddItem(EscalateModule *self,
 
 
 /**
- * EscalateModuleStartAddEnv:
- * @env: Array to append PAM environment variables to.
- * @env_line: One string like "FOO=somevalue" from pam_getenvlist().
- * @error: (out)(allow-none): Error return location or #NULL.
- *
- * Returns: #TRUE if there was no fatal error.
- */
-static gboolean EscalateModuleStartAddEnv(GVariantBuilder *env,
-                                          const gchar *env_line,
-                                          GError **error) {
-  gboolean success = FALSE;
-  gchar **env_line_parts = g_strsplit(env_line, "=", 2);
-  if (env_line_parts[0] && env_line_parts[1]) {
-    g_variant_builder_add(env, "{ss}", env_line_parts[0], env_line_parts[1]);
-    success = TRUE;
-  } else {
-    g_set_error(error, ESCALATE_MODULE_ERROR,
-                ESCALATE_MODULE_ERROR_INVALID_ENVIRONMENT,
-                "Failed to parse line from pam_getenvlist(): %s", env_line);
-  }
-  g_strfreev(env_line_parts);
-  return success;
-}
-
-
-/**
  * EscalateModuleStart:
  * @self: PAM module being described in the start message.
  * @action: Action being called on this module, like
@@ -204,13 +178,7 @@ gboolean EscalateModuleStart(EscalateModule *self, EscalateMessageAction action,
     }
   }
 
-  env = g_variant_builder_new(G_VARIANT_TYPE("a{ss}"));
-  pam_env_list = pam_getenvlist(self->pamh);
-  for (guint i = 0; pam_env_list && pam_env_list[i]; i++) {
-    if (!EscalateModuleStartAddEnv(env, pam_env_list[i], error)) {
-      goto done;
-    }
-  }
+  env = EscalateUtilPamEnvToVariant(self->pamh, error);
 
   message = EscalateMessageNew(ESCALATE_MESSAGE_TYPE_START, action, self->flags,
                                self->username, items, env);
@@ -298,38 +266,15 @@ static gboolean EscalateModuleHandleFinish(EscalateModule *self,
                                            EscalateMessage *message,
                                            GError **error) {
   GVariantIter *env_iter = NULL;
-  const gchar *env_key = NULL;
-  const gchar *env_value = NULL;
-  gboolean success = FALSE;
+  self->keep_going = FALSE;
 
   if (!EscalateSubprocessShutdown(self->child, ESCALATE_MODULE_SHUTDOWN_TIMEOUT,
                                   error)) {
-    goto done;
+    return FALSE;
   }
 
   EscalateMessageGetValues(message, &self->result, &env_iter);
-
-  while (g_variant_iter_next(env_iter, "{&s&s}", &env_key, &env_value)) {
-    gchar *env_line = g_strjoin("=", env_key, env_value, NULL);
-    int pam_status = pam_putenv(self->pamh, env_line);
-    g_free(env_line);
-    if (pam_status != PAM_SUCCESS) {
-      g_set_error(error, ESCALATE_MODULE_ERROR,
-                  ESCALATE_MODULE_ERROR_INVALID_ENVIRONMENT,
-                  "Failed to set environment variable %s=%s",
-                  env_key, env_value);
-      goto done;
-    }
-  }
-
-  success = TRUE;
-
-done:
-  if (env_iter) {
-    g_variant_iter_free(env_iter);
-  }
-  self->keep_going = FALSE;
-  return success;
+  return EscalateUtilPamEnvFromVariant(self->pamh, env_iter, error);
 }
 
 

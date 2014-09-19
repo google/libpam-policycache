@@ -12,7 +12,8 @@ libcache_la_SOURCES = util.h util.c \
 		      policy.h policy.c
 
 libescalate_la_SOURCES = escalate_message.c escalate_message.h \
-			 escalate_subprocess.c escalate_subprocess.h
+			 escalate_subprocess.c escalate_subprocess.h \
+			 escalate_util.c escalate_util.h
 
 
 # The final PAM modules.

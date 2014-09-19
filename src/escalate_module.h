@@ -20,6 +20,7 @@
 #define ESCALATE_MODULE_ERROR _EscalateModuleErrorQuark()
 
 #include "escalate_subprocess.h"
+#include "escalate_util.h"
 
 #include <glib.h>
 #include <security/pam_modules.h>
