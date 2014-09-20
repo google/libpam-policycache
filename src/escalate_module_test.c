@@ -42,7 +42,7 @@ static MockConversationMessage mock_auth_success_messages [] = {
 };
 
 static gchar *mock_auth_success_expect [] = {
-  "(1, <(1, 0, 'janedoe', {3: @ms '/dev/pts/9000'})>)",
+  "(1, <(1, 0, 'janedoe', {3: @ms '/dev/pts/9000'}, {'PATH': '/path'})>)",
   "(3, <(@ms 'testpass', 0)>)",
   "(3, <(@ms nothing, 0)>)",
   NULL,
@@ -51,7 +51,7 @@ static gchar *mock_auth_success_expect [] = {
 static gchar *mock_auth_success_respond [] = {
   "(2, <(1, 'Password: ')>)",
   "(2, <(4, 'Success!')>)",
-  "(4, <(0,)>)",
+  "(4, <(0, {'PATH': '/newpath'})>)",
   NULL,
 };
 
@@ -67,7 +67,7 @@ static MockConversationMessage mock_auth_err_messages [] = {
 };
 
 static gchar *mock_auth_err_expect [] = {
-  "(1, <(1, 0, 'janedoe', {3: @ms '/dev/pts/9001'})>)",
+  "(1, <(1, 0, 'janedoe', {3: @ms '/dev/pts/9001'}, {'PATH': '/path'})>)",
   "(3, <(@ms 'badpass', 0)>)",
   "(3, <(@ms nothing, 0)>)",
   NULL,
@@ -76,7 +76,7 @@ static gchar *mock_auth_err_expect [] = {
 static gchar *mock_auth_err_respond [] = {
   "(2, <(1, 'Password: ')>)",
   "(2, <(3, 'Failed!')>)",
-  "(4, <(7,)>)",
+  "(4, <(7, @a{ss} {})>)",
   NULL,
 };
 
@@ -148,11 +148,15 @@ void TestAuthSuccess() {
   status = pam_set_item(handle, PAM_TTY, "/dev/pts/9000");
   g_assert_cmpint(PAM_SUCCESS, ==, status);
 
+  status = pam_putenv(handle, "PATH=/path");
+  g_assert_cmpint(PAM_SUCCESS, ==, status);
+
   status = EscalateModuleMain(ESCALATE_MESSAGE_ACTION_AUTHENTICATE, handle, 0,
                               0, NULL);
   g_assert_cmpint(PAM_SUCCESS, ==, status);
 
   MockConversationAssertFinished(&conversation);
+  g_assert_cmpstr("/newpath", ==, pam_getenv(handle, "PATH"));
   pam_end(handle, PAM_SUCCESS);
 }
 
@@ -169,6 +173,9 @@ void TestAuthErr() {
   g_assert_cmpint(PAM_SUCCESS, ==, status);
 
   status = pam_set_item(handle, PAM_TTY, "/dev/pts/9001");
+  g_assert_cmpint(PAM_SUCCESS, ==, status);
+
+  status = pam_putenv(handle, "PATH=/path");
   g_assert_cmpint(PAM_SUCCESS, ==, status);
 
   status = EscalateModuleMain(ESCALATE_MESSAGE_ACTION_AUTHENTICATE, handle, 0,
@@ -192,6 +199,9 @@ void TestAuthSystemErr() {
   g_assert_cmpint(PAM_SUCCESS, ==, status);
 
   status = pam_set_item(handle, PAM_TTY, "/dev/pts/9000");
+  g_assert_cmpint(PAM_SUCCESS, ==, status);
+
+  status = pam_putenv(handle, "PATH=/path");
   g_assert_cmpint(PAM_SUCCESS, ==, status);
 
   status = EscalateModuleMain(ESCALATE_MESSAGE_ACTION_AUTHENTICATE, handle, 0,

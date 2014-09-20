@@ -16,6 +16,7 @@
 
 #include "escalate_helper.h"
 #include "escalate_message.h"
+#include "escalate_util.h"
 
 #include <pwd.h>
 #include <security/pam_ext.h>
@@ -33,13 +34,18 @@
  *
  * Returns: New #EscalateHelper instance.
  */
-EscalateHelper *EscalateHelperNew(int stdin_fd, int stdout_fd) {
+EscalateHelper *EscalateHelperNew(int stdin_fd, int stdout_fd,
+                                  uid_t caller_uid, gid_t caller_gid) {
   EscalateHelper *self = g_new0(EscalateHelper, 1);
   self->reader = g_io_channel_unix_new(stdin_fd);
   self->writer = g_io_channel_unix_new(stdout_fd);
+  self->caller_uid = caller_uid;
+  self->caller_gid = caller_gid;
   self->conv.conv = EscalateHelperConversation;
   self->conv.appdata_ptr = self;
   self->result = PAM_SYSTEM_ERR;
+  g_assert(self->caller_uid >= 0);
+  g_assert(self->caller_gid >= 0);
   return self;
 }
 
@@ -123,7 +129,7 @@ static gboolean EscalateHelperIsUserAllowed(EscalateHelper *self,
   struct passwd *user = NULL;
   g_assert(self->username);
 
-  if (getuid() == 0)
+  if (self->caller_uid == 0 && self->caller_gid == 0)
     return TRUE;
 
   user = getpwnam(self->username);
@@ -134,12 +140,12 @@ static gboolean EscalateHelperIsUserAllowed(EscalateHelper *self,
     return FALSE;
   }
 
-  if (user->pw_uid != getuid()) {
+  if (user->pw_uid != self->caller_uid) {
     g_set_error(error, ESCALATE_HELPER_ERROR,
                 ESCALATE_HELPER_ERROR_PRIVILEGE_ERROR,
                 "Can't use escalate for user '%s' (uid=%d) when running as"
                 " another user (uid=%d)", self->username, user->pw_uid,
-                getuid());
+                self->caller_uid);
     return FALSE;
   }
 
@@ -160,6 +166,7 @@ gboolean EscalateHelperHandleStart(EscalateHelper *self, GError **error) {
   EscalateMessage *message = NULL;
   EscalateMessage *response = NULL;
   GVariantIter *items = NULL;
+  GVariantIter *env = NULL;
   int pam_status = PAM_SYSTEM_ERR;
   int item_type = -1;
   const gchar *item_value = NULL;
@@ -177,7 +184,7 @@ gboolean EscalateHelperHandleStart(EscalateHelper *self, GError **error) {
     goto done;
 
   EscalateMessageGetValues(message, &self->action, &self->flags,
-                           &self->username, &items);
+                           &self->username, &items, &env);
 
   if (!EscalateHelperIsUserAllowed(self, error))
     goto done;
@@ -209,17 +216,20 @@ gboolean EscalateHelperHandleStart(EscalateHelper *self, GError **error) {
     }
   }
 
-  result = TRUE;
+  result = EscalateUtilPamEnvFromVariant(self->pamh, env, error);
 
 done:
   if (!result) {
-    response = EscalateMessageNew(ESCALATE_MESSAGE_TYPE_FINISH, PAM_SYSTEM_ERR);
+    response = EscalateMessageNew(ESCALATE_MESSAGE_TYPE_FINISH, PAM_SYSTEM_ERR,
+                                  NULL);
     EscalateMessageWrite(response, self->writer, NULL);
     EscalateMessageUnref(response);
   }
 
   if (items)
     g_variant_iter_free(items);
+  if (env)
+    g_variant_iter_free(env);
   if (message)
     EscalateMessageUnref(message);
   return result;
@@ -236,25 +246,50 @@ done:
  * sent.
  */
 gboolean EscalateHelperDoAction(EscalateHelper *self, GError **error) {
+  int setcred_result = PAM_SUCCESS;
   EscalateMessage *message = NULL;
-  gboolean success = FALSE;
+  GVariantBuilder *env = NULL;
+  gboolean result = FALSE;
 
+  // Run the action specified in the start message.
   switch (self->action) {
     case ESCALATE_MESSAGE_ACTION_AUTHENTICATE:
       self->result = pam_authenticate(self->pamh, self->flags);
+      if (self->result == PAM_SUCCESS || self->result == PAM_NEW_AUTHTOK_REQD) {
+        // Refresh things like Kerberos credentials. This is safe to do here
+        // even if the client never calls pam_setcred() because the entire auth
+        // stack succeeded.
+        // TODO(vonhollen): Make this configurable by pam_escalate.so.
+        setcred_result = pam_setcred(self->pamh, PAM_REFRESH_CRED);
+        if (setcred_result != PAM_SUCCESS) {
+          pam_syslog(self->pamh, LOG_NOTICE,
+                     "pam_setcred() failed for user '%s': %s",
+                     self->username, pam_strerror(self->pamh, setcred_result));
+        }
+      }
       break;
     default:
       self->result = PAM_SYSTEM_ERR;
       g_error("Unsupported action %d", self->action);
   }
 
-  // Prevents this function from being run twice.
+  // Prevent this function from being run twice.
   self->action = ESCALATE_MESSAGE_ACTION_UNKNOWN;
 
-  message = EscalateMessageNew(ESCALATE_MESSAGE_TYPE_FINISH, self->result);
-  success = EscalateMessageWrite(message, self->writer, error);
+  // Get the PAM environment to include in the result.
+  env = EscalateUtilPamEnvToVariant(self->pamh, error);
+  if (!env) {
+    goto done;
+  }
+
+  // Send the final PAM result for the action and the complete environment.
+  message = EscalateMessageNew(ESCALATE_MESSAGE_TYPE_FINISH, self->result, env);
+  result = EscalateMessageWrite(message, self->writer, error);
   EscalateMessageUnref(message);
-  return success;
+  g_variant_builder_unref(env);
+
+done:
+  return result;
 }
 
 
@@ -372,6 +407,8 @@ int EscalateHelperConversation(int conv_len,
 int main(int argc, char **argv) {
   GError *error = NULL;
   GOptionContext *context = NULL;
+  uid_t orig_uid = -1;
+  gid_t orig_gid = -1;
   EscalateHelper *helper = NULL;
   int exit_code = 2;
 
@@ -389,7 +426,18 @@ int main(int argc, char **argv) {
     goto done;
   }
 
-  helper = EscalateHelperNew(STDIN_FILENO, STDOUT_FILENO);
+  orig_uid = getuid();
+  orig_gid = getgid();
+
+  if (orig_uid != geteuid()) {
+    setuid(geteuid());
+  }
+
+  if (orig_gid != getegid()) {
+    setgid(getegid());
+  }
+
+  helper = EscalateHelperNew(STDIN_FILENO, STDOUT_FILENO, orig_uid, orig_gid);
 
   if (!EscalateHelperHandleStart(helper, &error)) {
     goto done;

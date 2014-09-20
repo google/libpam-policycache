@@ -29,7 +29,7 @@ static void CreateHelper(EscalateHelper **helper, GIOChannel **stdin_writer,
   g_assert(g_unix_open_pipe(stdin_fds, 0, NULL));
   g_assert(g_unix_open_pipe(stdout_fds, 0, NULL));
 
-  *helper = EscalateHelperNew(stdin_fds[0], stdout_fds[1]);
+  *helper = EscalateHelperNew(stdin_fds[0], stdout_fds[1], getuid(), getgid());
   *stdin_writer = g_io_channel_unix_new(stdin_fds[1]);
   *stdout_reader = g_io_channel_unix_new(stdout_fds[0]);
 
@@ -80,6 +80,8 @@ static gpointer RunHelperThreadFunc(EscalateHelper *helper) {
   }
 
 done:
+  if (error)
+    g_error_free(error);
   g_io_channel_shutdown(helper->reader, FALSE, NULL);
   g_io_channel_shutdown(helper->writer, FALSE, NULL);
   return NULL;
@@ -130,12 +132,13 @@ void TestAuthSuccess() {
   helper_thread = RunHelperThread(helper);
 
   WriteMessage(stdin_writer,
-               "(1, <(1, 0, 'janedoe', {3: @ms '/dev/pts/9000'})>)");
+               "(1, <(1, 0, 'janedoe', {3: @ms '/dev/pts/9000'},"
+               " {'PATH': '/path'})>)");
   AssertMessage(stdout_reader, "(2, <(1, 'Password: ')>)");
   WriteMessage(stdin_writer, "(3, <(@ms 'testpass', 0)>)");
   AssertMessage(stdout_reader, "(2, <(4, 'Success!')>)");
   WriteMessage(stdin_writer, "(3, <(@ms nothing, 0)>)");
-  AssertMessage(stdout_reader, "(4, <(0,)>)");
+  AssertMessage(stdout_reader, "(4, <(0, {'PATH': '/path'})>)");
 
   JoinHelperThread(helper_thread);
   EscalateHelperFree(helper);
@@ -157,12 +160,13 @@ void TestAuthErr() {
   helper_thread = RunHelperThread(helper);
 
   WriteMessage(stdin_writer,
-               "(1, <(1, 0, 'janedoe', {3: @ms '/dev/pts/9000'})>)");
+               "(1, <(1, 0, 'janedoe', {3: @ms '/dev/pts/9000'},"
+               " {'PATH': '/path'})>)");
   AssertMessage(stdout_reader, "(2, <(1, 'Password: ')>)");
   WriteMessage(stdin_writer, "(3, <(@ms 'testpass', 0)>)");
   AssertMessage(stdout_reader, "(2, <(4, 'Failed!')>)");
   WriteMessage(stdin_writer, "(3, <(@ms nothing, 0)>)");
-  AssertMessage(stdout_reader, "(4, <(7,)>)");
+  AssertMessage(stdout_reader, "(4, <(7, {'PATH': '/path'})>)");
 
   JoinHelperThread(helper_thread);
   EscalateHelperFree(helper);
@@ -184,8 +188,9 @@ static void TestWrongUser() {
   helper_thread = RunHelperThread(helper);
 
   WriteMessage(stdin_writer,
-               "(1, <(1, 0, 'janedoe', {3: @ms '/dev/pts/9000'})>)");
-  AssertMessage(stdout_reader, "(4, <(4,)>)");
+               "(1, <(1, 0, 'janedoe', {3: @ms '/dev/pts/9000'},"
+               " {'PATH': '/path'})>)");
+  AssertMessage(stdout_reader, "(4, <(4, @a{ss} {})>)");
 
   JoinHelperThread(helper_thread);
   EscalateHelperFree(helper);

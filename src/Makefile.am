@@ -12,7 +12,8 @@ libcache_la_SOURCES = util.h util.c \
 		      policy.h policy.c
 
 libescalate_la_SOURCES = escalate_message.c escalate_message.h \
-			 escalate_subprocess.c escalate_subprocess.h
+			 escalate_subprocess.c escalate_subprocess.h \
+			 escalate_util.c escalate_util.h
 
 
 # The final PAM modules.
@@ -67,6 +68,7 @@ ESCALATE_MOCK_FLAGS = -Wl,--wrap,pam_start \
 		      -Wl,--wrap,pam_getenvlist \
 		      -Wl,--wrap,pam_syslog \
 		      -Wl,--wrap,pam_authenticate \
+		      -Wl,--wrap,pam_setcred \
 		      -Wl,--wrap,g_spawn_async_with_pipes \
 		      -Wl,--wrap,getuid \
 		      -Wl,--wrap,geteuid \
@@ -125,3 +127,5 @@ check_PROGRAMS = util_test entry_test storage_test policy_test module_test \
 		 escalate_message_test escalate_subprocess_test \
 		 escalate_helper_test escalate_module_test
 TESTS = $(check_PROGRAMS)
+
+noinst_PROGRAMS = pam_test_tool

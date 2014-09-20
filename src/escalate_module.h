@@ -20,6 +20,7 @@
 #define ESCALATE_MODULE_ERROR _EscalateModuleErrorQuark()
 
 #include "escalate_subprocess.h"
+#include "escalate_util.h"
 
 #include <glib.h>
 #include <security/pam_modules.h>
@@ -29,6 +30,7 @@
  * @ESCALATE_MODULE_ERROR_UNKNOWN_ARG: Unknown argument given to module.
  * @ESCALATE_MODULE_ERROR_NO_USERNAME: No username available.
  * @ESCALATE_MODULE_ERROR_GET_ITEM_FAILED: Failed to get PAM item for message.
+ * @ESCALATE_MODULE_ERROR_INVALID_ENVIRONMENT: Failed to parse pam_getenvlist().
  * @ESCALATE_MODULE_ERROR_CONV: No conversation function available.
  * @ESCALATE_MODULE_ERROR_MESSAGE_TYPE: Unexpected #EscalateMessageType.
  */
@@ -36,6 +38,7 @@ typedef enum {
   ESCALATE_MODULE_ERROR_UNKNOWN_ARG = 1,
   ESCALATE_MODULE_ERROR_NO_USERNAME,
   ESCALATE_MODULE_ERROR_GET_ITEM_FAILED,
+  ESCALATE_MODULE_ERROR_INVALID_ENVIRONMENT,
   ESCALATE_MODULE_ERROR_CONV,
   ESCALATE_MODULE_ERROR_MESSAGE_TYPE,
 } EscalateModuleError;

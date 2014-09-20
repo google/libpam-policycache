@@ -165,6 +165,8 @@ static gboolean EscalateModuleStartAddItem(EscalateModule *self,
 gboolean EscalateModuleStart(EscalateModule *self, EscalateMessageAction action,
                              GError **error) {
   GVariantBuilder *items = NULL;
+  GVariantBuilder *env = NULL;
+  char **pam_env_list = NULL;
   EscalateMessage *message = NULL;
   gboolean result = FALSE;
 
@@ -176,15 +178,24 @@ gboolean EscalateModuleStart(EscalateModule *self, EscalateMessageAction action,
     }
   }
 
-  // TODO(vonhollen): Include environment variables?
+  env = EscalateUtilPamEnvToVariant(self->pamh, error);
+
   message = EscalateMessageNew(ESCALATE_MESSAGE_TYPE_START, action, self->flags,
-                               self->username, items);
+                               self->username, items, env);
   if (EscalateSubprocessSend(self->child, message, error))
     result = TRUE;
 
 done:
-  if (message)
+  if (pam_env_list) {
+    for (guint i = 0; pam_env_list[i]; i++) {
+      free(pam_env_list[i]);
+    }
+    free(pam_env_list);
+  }
+  if (message) {
     EscalateMessageUnref(message);
+  }
+  g_variant_builder_unref(env);
   g_variant_builder_unref(items);
   return result;
 }
@@ -254,13 +265,19 @@ done:
 static gboolean EscalateModuleHandleFinish(EscalateModule *self,
                                            EscalateMessage *message,
                                            GError **error) {
+  GVariantIter *env_iter = NULL;
+  gboolean result = FALSE;
+  self->keep_going = FALSE;
+
   if (!EscalateSubprocessShutdown(self->child, ESCALATE_MODULE_SHUTDOWN_TIMEOUT,
                                   error)) {
     return FALSE;
   }
-  EscalateMessageGetValues(message, &self->result);
-  self->keep_going = FALSE;
-  return TRUE;
+
+  EscalateMessageGetValues(message, &self->result, &env_iter);
+  result = EscalateUtilPamEnvFromVariant(self->pamh, env_iter, error);
+  g_variant_iter_free(env_iter);
+  return result;
 }
 
 
@@ -372,6 +389,8 @@ done:
 PAM_EXTERN int
 pam_sm_authenticate(
     pam_handle_t *pamh, int flags, int argc, const char **argv) {
+  // TODO(vonhollen): Pass in env variables and existing password.
+  // TODO(vonhollen): Leave helper open for cleanup later.
   return EscalateModuleMain(ESCALATE_MESSAGE_ACTION_AUTHENTICATE, pamh, flags,
                             argc, argv);
 }
@@ -380,6 +399,7 @@ pam_sm_authenticate(
 PAM_EXTERN int
 pam_sm_setcred(
     pam_handle_t *pamh, int flags, int argc, const char **argv) {
+  // TODO(vonhollen): Call setcred in helper (if exists) and decref.
   return PAM_IGNORE;
 }
 

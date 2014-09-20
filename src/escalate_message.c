@@ -22,10 +22,17 @@ static struct {
   EscalateMessageType type;
   const gchar *fmt;
 } escalate_message_formats [] = {
-  { ESCALATE_MESSAGE_TYPE_START, "(iisa{ims})" },
+  // Fields: action, flags, username, pam items, and environment variables.
+  { ESCALATE_MESSAGE_TYPE_START, "(iisa{ims}a{ss})" },
+
+  // Fields: pam conv message type and message value.
   { ESCALATE_MESSAGE_TYPE_CONV_MESSAGE, "(is)" },
+
+  // Fields: pam conv response and unused integer (0).
   { ESCALATE_MESSAGE_TYPE_CONV_RESPONSE, "(msi)" },
-  { ESCALATE_MESSAGE_TYPE_FINISH, "(i)" },
+
+  // Fields: action result and environment variables.
+  { ESCALATE_MESSAGE_TYPE_FINISH, "(ia{ss})" },
 };
 
 
