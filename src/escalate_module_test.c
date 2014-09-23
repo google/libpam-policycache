@@ -80,6 +80,10 @@ static gchar *mock_auth_err_respond [] = {
   NULL,
 };
 
+static MockConversationMessage mock_auth_null_messages [] = {};
+static gchar *mock_auth_null_expect [] = { NULL };
+static gchar *mock_auth_null_respond [] = { NULL };
+
 
 #define MockConversationNew(messages) \
     _MockConversationNew(messages, G_N_ELEMENTS(messages))
@@ -213,6 +217,52 @@ void TestAuthSystemErr() {
 }
 
 
+void TestAddEnv() {
+  struct pam_conv conversation = {
+    MockConversationCallback, MockConversationNew(mock_auth_null_messages) };
+  pam_handle_t *handle = NULL;
+  int status = PAM_SYSTEM_ERR;
+  const gchar *module_argv [] = { "add_env=FOO,BAR,NOPE" };
+  GError *error = NULL;
+  EscalateModule *module = NULL;
+
+  EscalateTestSetMockHelperMessages(mock_auth_null_expect,
+                                    mock_auth_null_respond);
+
+  status = pam_start("mockservice", "janedoe", &conversation, &handle);
+  g_assert_cmpint(PAM_SUCCESS, ==, status);
+
+  // Process environment should never overwrite PAM environment.
+  status = pam_putenv(handle, "FOO=good-value-for-foo");
+  g_assert_cmpint(PAM_SUCCESS, ==, status);
+  g_assert_cmpint(setenv("FOO", "bad-value-for-foo", 1), ==, 0);
+
+  // Process environment can be used if it's not already set.
+  g_assert_cmpint(setenv("BAR", "good-value-for-bar", 1), ==, 0);
+
+  // Only process environment variables that are listed can be included.
+  g_assert_cmpint(setenv("BAZ", "good-value-for-baz", 1), ==, 0);
+
+  module = EscalateModuleNew(handle, 0, G_N_ELEMENTS(module_argv), module_argv,
+                             NULL, &error);
+  g_assert_no_error(error);
+  g_assert(module);
+
+  g_assert_cmpstr("good-value-for-foo", ==, pam_getenv(handle, "FOO"));
+  g_assert_cmpstr("good-value-for-bar", ==, pam_getenv(handle, "BAR"));
+  g_assert_cmpstr(NULL, ==, pam_getenv(handle, "BAZ"));
+  g_assert_cmpstr(NULL, ==, pam_getenv(handle, "NOPE"));
+
+  EscalateModuleFree(module);
+  pam_end(handle, PAM_SUCCESS);
+  MockConversationAssertFinished(&conversation);
+
+  g_assert_cmpint(unsetenv("FOO"), ==, 0);
+  g_assert_cmpint(unsetenv("BAR"), ==, 0);
+  g_assert_cmpint(unsetenv("BAZ"), ==, 0);
+}
+
+
 int main(int argc, char **argv) {
   CacheTestInit();
   CacheTestInitUsersAndGroups();
@@ -220,5 +270,6 @@ int main(int argc, char **argv) {
   g_test_add_func("/escalate_module_test/TestAuthSuccess", TestAuthSuccess);
   g_test_add_func("/escalate_module_test/TestAuthErr", TestAuthErr);
   g_test_add_func("/escalate_module_test/TestAuthSystemErr", TestAuthSystemErr);
+  g_test_add_func("/escalate_module_test/TestAddEnv", TestAddEnv);
   return g_test_run();
 }

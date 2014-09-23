@@ -241,7 +241,7 @@ int __wrap_pam_authenticate(MockPamHandle *self, int flags) {
 
 int __wrap_pam_setcred(MockPamHandle *self, int flags) {
   g_assert(self);
-  g_assert(flags == PAM_REFRESH_CRED);
+  g_assert(flags == PAM_REINITIALIZE_CRED);
   return PAM_SUCCESS;
 }
 

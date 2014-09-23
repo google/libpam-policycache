@@ -22,6 +22,7 @@
 #include "escalate_message.h"
 
 #include <stdlib.h>
+#include <string.h>
 #include <syslog.h>
 
 #define ESCALATE_MODULE_SHUTDOWN_TIMEOUT 10000
@@ -30,6 +31,41 @@
 static gint escalate_module_include_items [] = {
   PAM_TTY, PAM_RUSER, PAM_RHOST, PAM_XDISPLAY, PAM_AUTHTOK_TYPE
 };
+
+
+/**
+ * EscalateModuleAddProcessEnvironment:
+ * @self: Module containing the PAM handle to modify.
+ * @arg: Argument string like "add_env=FOO,BAR" for adding getenv("FOO") and
+ *   getenv("BAR") to the PAM environment.
+ */
+static void EscalateModuleAddProcessEnvironment(EscalateModule *self,
+                                                const gchar *arg) {
+  gchar **names = NULL;
+  g_assert(g_str_has_prefix(arg, "add_env="));
+  arg += strlen("add_env=");
+
+  names = g_strsplit(arg, ",", 0);
+  for (guint i = 0; names[i]; i++) {
+    if (pam_getenv(self->pamh, names[i])) {
+      continue;
+    }
+
+    char *env_value = getenv(names[i]);
+    if (env_value) {
+      gchar *env_line = g_strjoin("=", names[i], env_value, NULL);
+      int pam_status = pam_putenv(self->pamh, env_line);
+      if (pam_status != PAM_SUCCESS) {
+        pam_syslog(self->pamh, LOG_WARNING,
+                   "Failed to set PAM environment variable '%s': %s",
+                   env_line, pam_strerror(self->pamh, pam_status));
+      }
+      g_free(env_line);
+    }
+  }
+
+  g_strfreev(names);
+}
 
 
 /**
@@ -61,6 +97,8 @@ EscalateModule *EscalateModuleNew(pam_handle_t *pamh, gint flags, gint argc,
       self->use_first_pass = TRUE;
     } else if (g_str_equal(arg, "try_first_pass")) {
       self->try_first_pass = TRUE;
+    } else if (g_str_has_prefix(arg, "add_env=")) {
+      EscalateModuleAddProcessEnvironment(self, arg);
     } else {
       g_set_error(error, ESCALATE_MODULE_ERROR,
                   ESCALATE_MODULE_ERROR_UNKNOWN_ARG,
@@ -400,7 +438,7 @@ PAM_EXTERN int
 pam_sm_setcred(
     pam_handle_t *pamh, int flags, int argc, const char **argv) {
   // TODO(vonhollen): Call setcred in helper (if exists) and decref.
-  return PAM_IGNORE;
+  return PAM_SUCCESS;
 }
 
 
