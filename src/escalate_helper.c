@@ -260,7 +260,7 @@ gboolean EscalateHelperDoAction(EscalateHelper *self, GError **error) {
         // even if the client never calls pam_setcred() because the entire auth
         // stack succeeded.
         // TODO(vonhollen): Make this configurable by pam_escalate.so.
-        setcred_result = pam_setcred(self->pamh, PAM_REFRESH_CRED);
+        setcred_result = pam_setcred(self->pamh, PAM_REINITIALIZE_CRED);
         if (setcred_result != PAM_SUCCESS) {
           pam_syslog(self->pamh, LOG_NOTICE,
                      "pam_setcred() failed for user '%s': %s",

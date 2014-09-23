@@ -191,14 +191,18 @@ int main(int argc, char **argv) {
   if (do_auth) {
     g_print("pam_authenticate(pamh, 0)\n");
     pam_result = pam_authenticate(pamh, 0);
-    if (pam_result) {
-      goto pam_done;
+    switch (pam_result) {
+      case PAM_SUCCESS:
+      case PAM_NEW_AUTHTOK_REQD:
+        break;
+      default:
+        goto pam_done;
     }
     PrintPamInfo(pamh);
 
     g_print("pam_setcred(pamh, %d)\n", setcred_style);
     pam_result = pam_setcred(pamh, setcred_style);
-    if (pam_result) {
+    if (pam_result != PAM_SUCCESS) {
       goto pam_done;
     }
     PrintPamInfo(pamh);
