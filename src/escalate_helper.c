@@ -18,6 +18,7 @@
 #include "escalate_message.h"
 #include "escalate_util.h"
 
+#include <errno.h>
 #include <pwd.h>
 #include <security/pam_ext.h>
 #include <stdlib.h>
@@ -430,11 +431,15 @@ int main(int argc, char **argv) {
   orig_gid = getgid();
 
   if (orig_uid != geteuid()) {
-    setuid(geteuid());
+    if (setuid(geteuid())) {
+      g_error("setuid() failed: %s", g_strerror(errno));
+    }
   }
 
   if (orig_gid != getegid()) {
-    setgid(getegid());
+    if (setgid(getegid())) {
+      g_error("setgid() failed: %s", g_strerror(errno));
+    }
   }
 
   helper = EscalateHelperNew(STDIN_FILENO, STDOUT_FILENO, orig_uid, orig_gid);
