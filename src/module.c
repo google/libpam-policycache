@@ -126,7 +126,6 @@ int CacheModuleDoAction(CacheModule *self, const gchar *password,
     goto done;
   }
 
-  g_assert(self->username);
   policy = CachePolicyNewForUser(self->username, policy_paths, error);
   if (!policy)
     goto done;

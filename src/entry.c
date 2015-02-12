@@ -203,11 +203,15 @@ gboolean CacheEntryPasswordSet(CacheEntry *self, const gchar *password,
   GBytes *salt = NULL;
   GBytes *hash = NULL;
 
-  salt = CacheUtilRandomBytes(CACHE_ENTRY_DEFAULT_SALT_LENGTH);
+  if (!password || !password[0]) {
+    g_set_error(error, CACHE_ENTRY_ERROR, CACHE_ENTRY_UNUSABLE_PASSWORD_ERROR,
+                "Password must not be empty");
+    return FALSE;
+  }
 
+  salt = CacheUtilRandomBytes(CACHE_ENTRY_DEFAULT_SALT_LENGTH);
   g_assert(salt);
-  g_assert(password);
-  g_assert(strlen(password) > 0);
+
   hash = CacheUtilHashPassword(self->algorithm, salt, password);
   if (!hash) {
     g_set_error(error, CACHE_ENTRY_ERROR, CACHE_ENTRY_CORRUPT_ERROR,
@@ -256,9 +260,12 @@ gboolean CacheEntryPasswordValidate(CacheEntry *self, const gchar *password,
     return FALSE;
   }
 
-  g_assert(self->salt);
-  g_assert(password);
-  g_assert(strlen(password) > 0);
+  if (!password || !password[0]) {
+    g_set_error(error, CACHE_ENTRY_ERROR, CACHE_ENTRY_UNUSABLE_PASSWORD_ERROR,
+                "Password must not be empty");
+    return FALSE;
+  }
+
   hash = CacheUtilHashPassword(self->algorithm, self->salt, password);
   if (!hash) {
     g_set_error(error, CACHE_ENTRY_ERROR, CACHE_ENTRY_CORRUPT_ERROR,

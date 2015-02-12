@@ -45,8 +45,6 @@ EscalateHelper *EscalateHelperNew(int stdin_fd, int stdout_fd,
   self->conv.conv = EscalateHelperConversation;
   self->conv.appdata_ptr = self;
   self->result = PAM_SYSTEM_ERR;
-  g_assert(self->caller_uid >= 0);
-  g_assert(self->caller_gid >= 0);
   return self;
 }
 
@@ -372,17 +370,30 @@ int EscalateHelperConversation(int conv_len,
   struct pam_response *tmp_conv_responses = NULL;
   int result = PAM_SUCCESS;
 
-  if (conv_len == 0) {
+  if (conv_len == 0 || !conv_requests) {
     pam_syslog(self->pamh, LOG_WARNING,
                "Conversation function called with no messages");
     return PAM_CONV_ERR;
+  }
+
+  for (guint i = 0; i < conv_len; i++) {
+    if (!conv_requests[i]) {
+      pam_syslog(self->pamh, LOG_WARNING,
+                 "Conversation function called with null request message");
+      return PAM_CONV_ERR;
+    }
+  }
+
+  if (!conv_responses) {
+      pam_syslog(self->pamh, LOG_WARNING,
+                 "Conversation function called with null response pointer");
+      return PAM_CONV_ERR;
   }
 
   tmp_conv_responses = calloc(conv_len, sizeof(struct pam_response));
   g_assert(tmp_conv_responses);
 
   for (guint i = 0; i < conv_len; i++) {
-    g_assert(conv_requests[i]);
     result = EscalateHelperPrompt(self, conv_requests[i],
                                   &tmp_conv_responses[i]);
     if (result != PAM_SUCCESS)
