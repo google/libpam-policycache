@@ -203,7 +203,7 @@ gboolean CacheEntryPasswordSet(CacheEntry *self, const gchar *password,
   GBytes *salt = NULL;
   GBytes *hash = NULL;
 
-  if (!password || !password[0]) {
+  if (!password || password[0] == '\0') {
     g_set_error(error, CACHE_ENTRY_ERROR, CACHE_ENTRY_UNUSABLE_PASSWORD_ERROR,
                 "Password must not be empty");
     return FALSE;
@@ -260,7 +260,7 @@ gboolean CacheEntryPasswordValidate(CacheEntry *self, const gchar *password,
     return FALSE;
   }
 
-  if (!password || !password[0]) {
+  if (!password || password[0] == '\0') {
     g_set_error(error, CACHE_ENTRY_ERROR, CACHE_ENTRY_UNUSABLE_PASSWORD_ERROR,
                 "Password must not be empty");
     return FALSE;
