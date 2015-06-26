@@ -248,6 +248,7 @@ gboolean EscalateMessageWrite(EscalateMessage *self, GIOChannel *stream,
                                        &written, error);
   switch (io_status) {
     case G_IO_STATUS_NORMAL:
+      // Non-blocking pipes should never return partially-written messages.
       g_assert(written == message_len);
       break;
     case G_IO_STATUS_ERROR:

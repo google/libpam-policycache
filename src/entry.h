@@ -56,6 +56,7 @@ typedef struct {
  * @CACHE_ENTRY_PASSWORD_ERROR: Given password didn't match.
  * @CACHE_ENTRY_CORRUPT_ERROR: Entry has inconsistent attributes.
  * @CACHE_ENTRY_PARSE_ERROR: Couldn't parse the entry.
+ * @CACHE_ENTRY_UNUSABLE_PASSWORD_ERROR: Given password was #NULL or empty.
  *
  * Error codes returned by CacheEntry* functions.
  */
@@ -65,6 +66,7 @@ typedef enum {
   CACHE_ENTRY_PASSWORD_ERROR,
   CACHE_ENTRY_CORRUPT_ERROR,
   CACHE_ENTRY_PARSE_ERROR,
+  CACHE_ENTRY_UNUSABLE_PASSWORD_ERROR,
 } CacheEntryError;
 
 CacheEntry *CacheEntryNew();

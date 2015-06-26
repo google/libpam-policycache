@@ -1,6 +1,8 @@
 AM_CFLAGS = $(GLIB_CFLAGS) -Wall -Werror \
-	    -DG_LOG_DOMAIN="\"pamcache\""
-AM_LDFLAGS = $(GLIB_LIBS) -lpam
+	    -DG_LOG_DOMAIN="\"pamcache\"" \
+	    -fPIC -fstack-protector-all -D_FORTIFY_SOURCE=2 \
+	    -Wl,-z,relro,-z,now -Wformat -Wformat-security
+AM_LDFLAGS = $(GLIB_LIBS) -lpam -Wa,--noexecstack
 
 
 # Common libraries for the tests, setuid helper, and the final PAM modules.
@@ -37,6 +39,7 @@ pam_escalate_la_LDFLAGS = -shared -module -avoid-version \
 bin_PROGRAMS = pam-escalate-helper
 pam_escalate_helper_SOURCES = escalate_helper.c escalate_helper.h
 pam_escalate_helper_LDADD = libescalate.la
+pam_escalate_helper_LDFLAGS = $(AM_LDFLAGS) -pie
 
 install-exec-hook:
 	chmod u+s $(DESTDIR)$(bindir)/pam-escalate-helper
