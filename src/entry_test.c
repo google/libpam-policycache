@@ -18,9 +18,19 @@
 #include "test.h"
 #include "util.h"
 
-const gchar *example_entry = (
+const gchar *example_entry_v1 = (
     "{'version': <1>, 'tries': <0>, 'algorithm': <'SHA256'>, "
     "'salt': <'0B8BAA809CDCA339910EE8F6F9FE22A5'>, "
+    "'hash':"
+    " <'14BABCBC943B302EFDCC137419F7D3FB736602D77CF42975A6778A5B7F2D63CD'>, "
+    "'last_verified': <'2014-03-28T23:14:21Z'>, "
+    "'last_used': <'2014-03-28T23:14:21Z'>, "
+    "'last_tried': <'2014-03-28T23:14:21Z'>}"
+    );
+
+const gchar *example_entry_v2 = (
+    "{'version': <2>, 'tries': <0>, 'algorithm': <'SHA256'>, "
+    "'args': <{'salt': <'0B8BAA809CDCA339910EE8F6F9FE22A5'>}>, "
     "'hash':"
     " <'14BABCBC943B302EFDCC137419F7D3FB736602D77CF42975A6778A5B7F2D63CD'>, "
     "'last_verified': <'2014-03-28T23:14:21Z'>, "
@@ -71,17 +81,16 @@ void TestPasswordSetAndVerify() {
 }
 
 
-void TestUnserialize() {
+void TestUnserialize(const gchar *data) {
   // Parse the entry in "example_entry".
   GError *error = NULL;
-  CacheEntry *entry = CacheEntryUnserialize(example_entry, &error);
+  CacheEntry *entry = CacheEntryUnserialize(data, &error);
   g_assert(entry);
   g_assert_no_error(error);
 
   // Check basic types.
-  g_assert_cmpint(1, ==, entry->version);
   g_assert_cmpint(0, ==, entry->tries);
-  g_assert_cmpint(G_CHECKSUM_SHA256, ==, entry->algorithm);
+  g_assert_cmpint(CACHE_ENTRY_ALGORITHM_SHA256, ==, entry->algorithm);
 
   // Make sure all "last_*" attributes match "example_date".
   GDateTime *expected_time = NULL;
@@ -93,8 +102,8 @@ void TestUnserialize() {
   // Make sure the entry's salt matches "example_salt".
   GBytes *expect_salt = NULL;
   CacheUtilBytesFromString(example_salt, &expect_salt);
-  g_assert(entry->salt);
-  g_assert(g_bytes_equal(expect_salt, entry->salt));
+  g_assert(entry->args.basic.salt);
+  g_assert(g_bytes_equal(expect_salt, entry->args.basic.salt));
 
   // Make sure the entry's hash matches "example_hash".
   GBytes *expect_hash = NULL;
@@ -113,6 +122,16 @@ void TestUnserialize() {
 }
 
 
+void TestUnserializeV1() {
+  TestUnserialize(example_entry_v1);
+}
+
+
+void TestUnserializeV2() {
+  TestUnserialize(example_entry_v2);
+}
+
+
 void TestUnserializeInvalidString() {
   GError *error = NULL;
   CacheEntry *entry = CacheEntryUnserialize("nope", &error);
@@ -125,10 +144,9 @@ void TestUnserializeInvalidString() {
 void TestSerialize() {
   // Create an entry just like "example_entry".
   CacheEntry *entry = CacheEntryNew();
-  entry->version = 1;
   entry->tries = 0;
-  entry->algorithm = G_CHECKSUM_SHA256;
-  CacheUtilBytesFromString(example_salt, &entry->salt);
+  entry->algorithm = CACHE_ENTRY_ALGORITHM_SHA256;
+  CacheUtilBytesFromString(example_salt, &entry->args.basic.salt);
   CacheUtilBytesFromString(example_hash, &entry->hash);
   CacheUtilDatetimeFromString(example_time, &entry->last_verified);
   CacheUtilDatetimeFromString(example_time, &entry->last_used);
@@ -136,7 +154,7 @@ void TestSerialize() {
 
   // Serialize it and compare the string against the example.
   gchar *result = CacheEntrySerialize(entry);
-  g_assert_cmpstr(example_entry, ==, result);
+  g_assert_cmpstr(example_entry_v2, ==, result);
 
   g_free(result);
   CacheEntryUnref(entry);
@@ -148,7 +166,8 @@ int main(int argc, char **argv) {
   g_test_init(&argc, &argv, NULL);
   g_test_add_func(
       "/entry_test/TestPasswordSetAndVerify", TestPasswordSetAndVerify);
-  g_test_add_func("/entry_test/TestUnserialize", TestUnserialize);
+  g_test_add_func("/entry_test/TestUnserializeV1", TestUnserializeV1);
+  g_test_add_func("/entry_test/TestUnserializeV2", TestUnserializeV2);
   g_test_add_func("/entry_test/TestUnserializeInvalidString", TestUnserializeInvalidString);
   g_test_add_func("/entry_test/TestSerialize", TestSerialize);
   return g_test_run();

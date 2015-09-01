@@ -1,8 +1,9 @@
 AM_CFLAGS = $(GLIB_CFLAGS) -Wall -Werror \
 	    -DG_LOG_DOMAIN="\"pamcache\"" \
+	    -D_GNU_SOURCE=1 \
 	    -fPIC -fstack-protector-all -D_FORTIFY_SOURCE=2 \
 	    -Wl,-z,relro,-z,now -Wformat -Wformat-security
-AM_LDFLAGS = $(GLIB_LIBS) -lpam -Wa,--noexecstack
+AM_LDFLAGS = $(GLIB_LIBS) -lpam -lcrypt -lscrypt -Wa,--noexecstack
 
 
 # Common libraries for the tests, setuid helper, and the final PAM modules.

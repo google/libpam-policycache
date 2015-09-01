@@ -144,4 +144,5 @@ Dependencies:
 
 * GLib
 * Linux-PAM
+* libscrypt
 * Autoconf, Automake, Libtool

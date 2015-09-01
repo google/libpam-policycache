@@ -26,7 +26,7 @@ void TestPutAndGetEntry() {
 
   CacheEntry *entry_orig = CacheEntryNew();
   g_assert(entry_orig);
-  entry_orig->algorithm = G_CHECKSUM_SHA1;
+  entry_orig->algorithm = CACHE_ENTRY_ALGORITHM_SHA256;
   entry_orig->tries = 5;
 
   GError *error = NULL;
@@ -37,8 +37,7 @@ void TestPutAndGetEntry() {
   g_assert_no_error(error);
   g_assert(entry_copy);
 
-  g_assert_cmpint(1, ==, entry_copy->version);
-  g_assert_cmpint(G_CHECKSUM_SHA1, ==, entry_copy->algorithm);
+  g_assert_cmpint(CACHE_ENTRY_ALGORITHM_SHA256, ==, entry_copy->algorithm);
   g_assert_cmpint(5, ==, entry_copy->tries);
 
   CacheEntryUnref(entry_copy);

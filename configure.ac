@@ -13,9 +13,20 @@ AM_PROG_CC_C_O
 AM_PROG_AR
 LT_INIT
 PKG_CHECK_MODULES([GLIB], [glib-2.0 >= 2.32.4])
+AC_CHECK_LIB([scrypt], [libscrypt_scrypt], [], [AC_MSG_ERROR([libscrypt not found])])
+AC_CHECK_LIB([crypt], [crypt], [], [AC_MSG_ERROR([libcrypt not found])])
+AC_CHECK_LIB([pam], [pam_start], [], [AC_MSG_ERROR([libpam not found])])
 
 # Checks for header files.
-AC_CHECK_HEADERS([stdint.h stdlib.h string.h])
+AC_CHECK_HEADERS(
+    [stdint.h stdlib.h string.h crypt.h],
+    [], [AC_MSG_ERROR([missing system headers])])
+AC_CHECK_HEADERS(
+    [security/pam_appl.h security/pam_client.h security/pam_ext.h],
+    [], [AC_MSG_ERROR([missing libpam headers])])
+AC_CHECK_HEADERS(
+    [libscrypt.h],
+    [], [AC_MSG_ERROR([missing libscrypt headers])])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_TYPE_UINT32_T

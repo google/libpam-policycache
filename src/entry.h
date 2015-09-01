@@ -22,9 +22,63 @@
 #define CACHE_ENTRY_ERROR _CacheEntryErrorQuark()
 
 /**
+ * CacheEntryAlgorithm:
+ * @CACHE_ENTRY_ALGORITHM_SHA256: Algorithm for string "SHA256". Least secure
+ * option available.
+ * @CACHE_ENTRY_ALGORITHM_SCRYPT: Algorithm for string "scrypt". Scrypt is the
+ * default and most secure option.
+ * @CACHE_ENTRY_ALGORITHM_CRYPT: Algorithm for string "crypt". Uses crypt().
+ *
+ * Algorithms a CacheEntry can use to hash a password.
+ */
+typedef enum {
+  CACHE_ENTRY_ALGORITHM_UNKNOWN = 0,
+  CACHE_ENTRY_ALGORITHM_SHA256,
+  CACHE_ENTRY_ALGORITHM_SCRYPT,
+  CACHE_ENTRY_ALGORITHM_CRYPT,
+} CacheEntryAlgorithm;
+
+/**
+ * CacheEntryBasicArgs:
+ * @salt: Bytes hashed before the password.
+ *
+ * Arguments for basic hash functions like SHA*.
+ */
+typedef struct {
+  GBytes *salt;
+} CacheEntryBasicArgs;
+
+/**
+ * CacheEntryScryptArgs:
+ * @salt: Bytes used to perturb the hash.
+ * @N: Primary work factor. Must be a power of two.
+ * @r: Memory cost.
+ * @p: CPU cost.
+ *
+ * Arguments for the scrypt algorithm.
+ */
+typedef struct {
+  GBytes *salt;
+  guint64 N;
+  guint32 r;
+  guint32 p;
+} CacheEntryScryptArgs;
+
+/**
+ * CacheEntryArgs:
+ * @basic: Args for basic hash algorithms like SHA256.
+ * @scrypt: Args for the scrypt algorithm.
+ *
+ * Arguments depend on the algorithm selected in the CacheEntry.
+ */
+typedef union {
+  CacheEntryBasicArgs basic;
+  CacheEntryScryptArgs scrypt;
+} CacheEntryArgs;
+
+/**
  * CacheEntry:
  * @refcount: Number of refences to the entry.
- * @version: Version when the entry was created/serialized, 1 for now.
  * @algorithm: Hash algorithm used in @hash.
  * @salt: Salt to concatenate before a password when calculating @hash.
  * @hash: Hashed @salt + password.
@@ -39,9 +93,8 @@
  */
 typedef struct {
   gint refcount;
-  gint version;
-  GChecksumType algorithm;
-  GBytes *salt;
+  CacheEntryAlgorithm algorithm;
+  CacheEntryArgs args;
   GBytes *hash;
   GDateTime *last_verified;
   GDateTime *last_used;
