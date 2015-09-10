@@ -15,12 +15,13 @@
  */
 
 #include "entry.h"
-#include "util.h"
 
 #include <crypt.h>
 #include <string.h>
 
 #include <libscrypt.h>
+
+#include "util.h"
 
 #define CACHE_ENTRY_DEFAULT_ALGORITHM G_CHECKSUM_SHA256
 #define CACHE_ENTRY_DEFAULT_SALT_LENGTH 16
@@ -352,7 +353,7 @@ gboolean CacheEntryPasswordValidate(CacheEntry *self, const gchar *password,
   // statements.
   guint8 *hash_buf = NULL;
   GByteArray *salt = NULL;
-  struct crypt_data crypt_state;
+  struct crypt_data crypt_state = {0};
   char *hash_str = NULL;
 
   if (!self->hash) {
