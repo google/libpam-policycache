@@ -1,7 +1,7 @@
 AC_PREREQ([2.68])
 AC_INIT([libpam-policycache], [0.6], [https://github.com/google/libpam-policycache])
 AC_CONFIG_AUX_DIR([autotools])
-AC_CONFIG_MACRO_DIR([autotools/m4])
+AC_CONFIG_MACRO_DIR([m4])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign])
 AM_SILENT_RULES([yes])
 
