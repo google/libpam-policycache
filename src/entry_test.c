@@ -102,8 +102,8 @@ void TestUnserialize(const gchar *data) {
   // Make sure the entry's salt matches "example_salt".
   GBytes *expect_salt = NULL;
   CacheUtilBytesFromString(example_salt, &expect_salt);
-  g_assert(entry->args.basic.salt);
-  g_assert(g_bytes_equal(expect_salt, entry->args.basic.salt));
+  g_assert(entry->args.basic_salt);
+  g_assert(g_bytes_equal(expect_salt, entry->args.basic_salt));
 
   // Make sure the entry's hash matches "example_hash".
   GBytes *expect_hash = NULL;
@@ -146,7 +146,7 @@ void TestSerialize() {
   CacheEntry *entry = CacheEntryNew();
   entry->tries = 0;
   entry->algorithm = CACHE_ENTRY_ALGORITHM_SHA256;
-  CacheUtilBytesFromString(example_salt, &entry->args.basic.salt);
+  CacheUtilBytesFromString(example_salt, &entry->args.basic_salt);
   CacheUtilBytesFromString(example_hash, &entry->hash);
   CacheUtilDatetimeFromString(example_time, &entry->last_verified);
   CacheUtilDatetimeFromString(example_time, &entry->last_used);

@@ -47,18 +47,11 @@ void CacheEntryRef(CacheEntry *self) {
 
 
 static void CacheEntryFreeArgs(CacheEntry *self) {
-  switch (self->algorithm) {
-  case CACHE_ENTRY_ALGORITHM_SHA256:
-    if (self->args.basic.salt)
-      g_bytes_unref(self->args.basic.salt);
-    break;
-  case CACHE_ENTRY_ALGORITHM_SCRYPT:
-    if (self->args.scrypt.salt)
-      g_bytes_unref(self->args.scrypt.salt);
-    break;
-  default:
-    break;
-  }
+  if (self->args.basic_salt)
+    g_bytes_unref(self->args.basic_salt);
+  if (self->args.scrypt_salt)
+    g_bytes_unref(self->args.scrypt_salt);
+  memset(&self->args, 0, sizeof(self->args));
 }
 
 
@@ -143,14 +136,14 @@ CacheEntry *CacheEntryUnserialize(const gchar *value, GError **error) {
   if (g_str_equal(tmp_str, "SHA256")) {
     self->algorithm = CACHE_ENTRY_ALGORITHM_SHA256;
     if (g_variant_lookup(args, "salt", "&s", &tmp_str))
-      CacheUtilBytesFromString(tmp_str, &self->args.basic.salt);
+      CacheUtilBytesFromString(tmp_str, &self->args.basic_salt);
   } else if (g_str_equal(tmp_str, "scrypt")) {
     self->algorithm = CACHE_ENTRY_ALGORITHM_SCRYPT;
     if (g_variant_lookup(args, "salt", "&s", &tmp_str))
-      CacheUtilBytesFromString(tmp_str, &self->args.scrypt.salt);
-    g_variant_lookup(args, "N", "t", &self->args.scrypt.N);
-    g_variant_lookup(args, "r", "u", &self->args.scrypt.r);
-    g_variant_lookup(args, "p", "u", &self->args.scrypt.p);
+      CacheUtilBytesFromString(tmp_str, &self->args.scrypt_salt);
+    g_variant_lookup(args, "N", "t", &self->args.scrypt_N);
+    g_variant_lookup(args, "r", "u", &self->args.scrypt_r);
+    g_variant_lookup(args, "p", "u", &self->args.scrypt_p);
   } else if (g_str_equal(tmp_str, "crypt")) {
     self->algorithm = CACHE_ENTRY_ALGORITHM_CRYPT;
   } else {
@@ -199,8 +192,8 @@ gchar *CacheEntrySerialize(CacheEntry *self) {
   switch (self->algorithm) {
   case CACHE_ENTRY_ALGORITHM_SHA256:
     algorithm = "SHA256";
-    if (self->args.basic.salt) {
-      tmp_str = CacheUtilBytesToString(self->args.basic.salt);
+    if (self->args.basic_salt) {
+      tmp_str = CacheUtilBytesToString(self->args.basic_salt);
       g_variant_builder_add(&builder, "{sv}", "salt",
                             g_variant_new_string(tmp_str));
       g_free(tmp_str);
@@ -208,18 +201,18 @@ gchar *CacheEntrySerialize(CacheEntry *self) {
     break;
   case CACHE_ENTRY_ALGORITHM_SCRYPT:
     algorithm = "scrypt";
-    if (self->args.scrypt.salt) {
-      tmp_str = CacheUtilBytesToString(self->args.scrypt.salt);
+    if (self->args.scrypt_salt) {
+      tmp_str = CacheUtilBytesToString(self->args.scrypt_salt);
       g_variant_builder_add(&builder, "{sv}", "salt",
                             g_variant_new_string(tmp_str));
       g_free(tmp_str);
     }
     g_variant_builder_add(&builder, "{sv}", "N",
-                          g_variant_new_uint64(self->args.scrypt.N));
+                          g_variant_new_uint64(self->args.scrypt_N));
     g_variant_builder_add(&builder, "{sv}", "r",
-                          g_variant_new_uint32(self->args.scrypt.r));
+                          g_variant_new_uint32(self->args.scrypt_r));
     g_variant_builder_add(&builder, "{sv}", "p",
-                          g_variant_new_uint32(self->args.scrypt.p));
+                          g_variant_new_uint32(self->args.scrypt_p));
     break;
   case CACHE_ENTRY_ALGORITHM_CRYPT:
     algorithm = "crypt";
@@ -314,10 +307,10 @@ gboolean CacheEntryPasswordSet(CacheEntry *self, const gchar *password,
   CacheEntryFreeArgs(self);
 
   self->algorithm = CACHE_ENTRY_ALGORITHM_SCRYPT;
-  self->args.scrypt.N = SCRYPT_N;
-  self->args.scrypt.r = SCRYPT_r;
-  self->args.scrypt.p = SCRYPT_p;
-  self->args.scrypt.salt = salt;
+  self->args.scrypt_N = SCRYPT_N;
+  self->args.scrypt_r = SCRYPT_r;
+  self->args.scrypt_p = SCRYPT_p;
+  self->args.scrypt_salt = salt;
 
   if (self->hash)
     g_bytes_unref(self->hash);
@@ -370,7 +363,7 @@ gboolean CacheEntryPasswordValidate(CacheEntry *self, const gchar *password,
 
   switch (self->algorithm) {
   case CACHE_ENTRY_ALGORITHM_SHA256:
-    hash = CacheUtilHashPassword(G_CHECKSUM_SHA256, self->args.basic.salt,
+    hash = CacheUtilHashPassword(G_CHECKSUM_SHA256, self->args.basic_salt,
                                  password);
     if (!hash) {
       g_set_error(error, CACHE_ENTRY_ERROR, CACHE_ENTRY_CORRUPT_ERROR,
@@ -381,11 +374,11 @@ gboolean CacheEntryPasswordValidate(CacheEntry *self, const gchar *password,
   case CACHE_ENTRY_ALGORITHM_SCRYPT:
     hash_buf = g_new0(guint8, g_bytes_get_size(self->hash));
     if (libscrypt_scrypt((const guint8 *) password, strlen(password),
-                         g_bytes_get_data(self->args.scrypt.salt, NULL),
-                         g_bytes_get_size(self->args.scrypt.salt),
-                         self->args.scrypt.N,
-                         self->args.scrypt.r,
-                         self->args.scrypt.p,
+                         g_bytes_get_data(self->args.scrypt_salt, NULL),
+                         g_bytes_get_size(self->args.scrypt_salt),
+                         self->args.scrypt_N,
+                         self->args.scrypt_r,
+                         self->args.scrypt_p,
                          hash_buf, g_bytes_get_size(self->hash))) {
       g_set_error(error, CACHE_ENTRY_ERROR, CACHE_ENTRY_CORRUPT_ERROR,
                   "Unknown libscrypt_scrypt() error");

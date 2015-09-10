@@ -39,41 +39,21 @@ typedef enum {
 } CacheEntryAlgorithm;
 
 /**
- * CacheEntryBasicArgs:
- * @salt: Bytes hashed before the password.
- *
- * Arguments for basic hash functions like SHA*.
- */
-typedef struct {
-  GBytes *salt;
-} CacheEntryBasicArgs;
-
-/**
- * CacheEntryScryptArgs:
- * @salt: Bytes used to perturb the hash.
- * @N: Primary work factor. Must be a power of two.
- * @r: Memory cost.
- * @p: CPU cost.
- *
- * Arguments for the scrypt algorithm.
- */
-typedef struct {
-  GBytes *salt;
-  guint64 N;
-  guint32 r;
-  guint32 p;
-} CacheEntryScryptArgs;
-
-/**
  * CacheEntryArgs:
- * @basic: Args for basic hash algorithms like SHA256.
- * @scrypt: Args for the scrypt algorithm.
+ * @basic_salt: Bytes added to the hash before the password in SHA* hashes.
+ * @scrypt_salt: Bytes used to perturb a Scrypt hash.
+ * @scrypt_N: Scrypt primary work factor. Must be a power of two.
+ * @scrypt_r: Scrypt memory cost.
+ * @scrypt_p: Scrypt CPU cost.
  *
- * Arguments depend on the algorithm selected in the CacheEntry.
+ * Arguments used depend on the algorithm selected in the CacheEntry.
  */
-typedef union {
-  CacheEntryBasicArgs basic;
-  CacheEntryScryptArgs scrypt;
+typedef struct {
+  GBytes *basic_salt;
+  GBytes *scrypt_salt;
+  guint64 scrypt_N;
+  guint32 scrypt_r;
+  guint32 scrypt_p;
 } CacheEntryArgs;
 
 /**
