@@ -353,7 +353,7 @@ gboolean CacheEntryPasswordValidate(CacheEntry *self, const gchar *password,
   // statements.
   guint8 *hash_buf = NULL;
   GByteArray *salt = NULL;
-  struct crypt_data crypt_state = {0};
+  struct crypt_data crypt_state;
   char *hash_str = NULL;
 
   if (!self->hash) {
