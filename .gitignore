@@ -1,6 +1,7 @@
 aclocal.m4
 autom4te.cache/
 autotools/
+m4/
 configure
 Makefile.in
 

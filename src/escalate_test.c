@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-#define _GNU_SOURCE
-
 #include "escalate_message.h"
 #include "escalate_test.h"
 
