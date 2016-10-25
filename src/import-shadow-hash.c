@@ -13,16 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- 
- 
+
 #include "storage.h"
 #include "module.h"
 #include "entry.h"
 #include <string.h>
+#include <stdlib.h>
 #include <stdio.h>
 #include <shadow.h>
-
-#define SH_TMPFILE "/etc/nshadow"
 
 /**
  * CreateEntryFromShadowHash:
@@ -51,91 +49,69 @@ gboolean CreateEntryFromShadowHash(const char *username, char *sdhash) {
     }
 }
 
+
 /**
- * UpdateShadowHash:
- * @username: Username to blank out hashed shadow password.
- * @towhat: What to changed the hashed password to.
+ * ReadShadowFile:
+ * @username: Username to read hashed password for.
  */
-gboolean UpdateShadowHash(const gchar *username, gchar *towhat) {
+gboolean ReadShadowFile(const gchar *username, const gchar *path) {
   struct spwd *stmpent = NULL;
-
-  FILE *pwfile, *opwfile;
   int error = 0;
-  int oldmask = umask(077);
-  int wroteentry = 0;
-
-
-  pwfile = fopen(SH_TMPFILE, "w");
-  umask(oldmask);
-  if (pwfile == NULL) {
-    error = 1;
-    goto done;
+  
+  if (!path) {
+    path = "/etc/shadow";
   }
 
-  opwfile = fopen("/etc/shadow", "r");
-  if (opwfile == NULL) {
-    fclose(pwfile);
+  FILE *shadowfile = fopen(path, "r");
+  if (shadowfile == NULL) {
     error = 1;
     goto done;
   }
 
   // stmpent -- Read next shadow entry from STREAM.
-  stmpent = fgetspent(opwfile);
+  stmpent = fgetspent(shadowfile);
   // Loop through /etc/shadow file
   while (stmpent) {
     if (!strcmp(stmpent->sp_namp, username)) {
       // Create entry from shadow hash if username matches an entry.
       CreateEntryFromShadowHash(username, stmpent->sp_pwdp);
-      // Set encrypted password to towhat
-      stmpent->sp_pwdp = towhat;
-      stmpent->sp_lstchg = time(NULL) / (60 * 60 * 24);
-      // Check that an entry was written.
-      wroteentry = 1;
-      fprintf(stdout, "Set password %s for %s\n", stmpent-> sp_pwdp, username);
-    }
-
-    if (putspent(stmpent, pwfile)) {
-      fprintf(stderr, "Error writting entry to shadow file\n");
-      error = 1;
       break;
     }
-
-    stmpent = fgetspent(opwfile);
+    // Get the next shadow entry from STREAM
+    fgetspent(shadowfile);
   }
-
-  fclose(opwfile);
+  fclose(shadowfile);
 
   done:
-    if (!error) {
-      // Move tmp file contents into the real file.
-      if (!rename(SH_TMPFILE, "/etc/shadow"))
-          fprintf(stdout, "Password changed for %s\n", username);
-      else
-          error = 1;
+    if (error) {
+      fprintf(stderr, "Failed to read shadow file.\n");
     }
 
   if (!error) {
-    fprintf(stdout, "Successfully updated shadow file.\n");
+    fprintf(stdout, "Successfully read shadow file.\n");
     return TRUE;
   } else {
-    unlink(SH_TMPFILE);
-    fprintf(stderr, "Failed to update shadow file.\n");
+    fprintf(stderr, "Shadow read failed.\n");
     return FALSE;
   }
 }
+
 
 int main(int argc, char *argv[]) {
   int exit_code = 0;
   GError *error = NULL;
   GOptionContext *context = NULL;
  
-  // TODO(mcclunge): Add option to disable hash password instead of just remove.
-  static gboolean remove = FALSE; 
-  static gchar* username = NULL;
+  static gboolean add = FALSE;
+  static gboolean unlock = FALSE;
+  static gboolean lock = FALSE;
+  static gchar* path = NULL;
   static GOptionEntry entries[] = 
     {
-	{ "remove", 'r', 0, G_OPTION_ARG_NONE, &remove, "Remove shadow hash password for a given user."},
-        { "username", 'u', 0, G_OPTION_ARG_STRING, &username, "Username to affect changes on."},
+        { "lock", 'l', 0, G_OPTION_ARG_NONE, &lock, "Lock specified user's shadow hash password."},
+        { "unlock", 'u', 0, G_OPTION_ARG_NONE, &unlock, "Unlock specified user's shadow hash password."}, 
+        { "path", 'p', 0, G_OPTION_ARG_STRING, &path, "Path to search for hashed passwords."},
+        { "add-policycache", 'a', 0, G_OPTION_ARG_NONE, &add, "Reads shadow hash password for a given user and adds it to policycache."},
 	{ NULL }
     };
 
@@ -151,19 +127,20 @@ int main(int argc, char *argv[]) {
     fprintf(stderr, "Must be run as root, please re-run as root.\n");
     goto done;
   }
-  if (!username) {
-    fprintf(stderr, "Command must include username argument.\n");
-    goto done;
-
-  } else { 
-      if (remove == TRUE) {
-        // Remove hashed password by replacing it with "*".
-        UpdateShadowHash(username, "*");
-      } else {
-	  fprintf(stderr, "Command must include -r to remove shadow hash.\n");
-      }
+  
+    
+  char *user = argv[1];
+  if (add == TRUE && user != NULL) { 
+    // Read shadow file and create policycache entry.
+    ReadShadowFile(user, path);
+  } else if (lock == TRUE && user != NULL) {
+    // Lock specified user's password hash.
+      LockUser(user);
+  } else if (unlock == TRUE && user != NULL) {
+    // Unlock specified user's password hash.
+      UnlockUser(user);
   }
-
+      
   done:
     if (error) {
       g_printerr("option parsing failed %s\n", error->message);
