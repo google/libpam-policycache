@@ -326,6 +326,11 @@ gboolean CacheEntryPasswordSet(CacheEntry *self, const gchar *password,
   return TRUE;
 }
 
+void CacheEntryHashSet(CacheEntry *self, CacheEntryAlgorithm algorithm,
+                  GBytes *hash, CacheEntryArgs *args) {
+  self->algorithm = algorithm;
+  self->hash = g_bytes_ref(hash);
+}
 
 /**
  * CacheEntryPasswordValidate:

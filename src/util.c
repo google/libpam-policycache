@@ -20,6 +20,8 @@
 #include <grp.h>
 #include <pwd.h>
 #include <string.h>
+#include <shadow.h>
+#include <stdio.h>
 #include <sys/types.h>
 
 typedef struct {
@@ -118,6 +120,39 @@ gboolean CacheUtilHashalgFromString(const gchar *value, GChecksumType *result) {
 
 
 /**
+ * ReadShadowFile:
+ * @path: Shadow file path.
+ * @username: Username to read hashed password for.
+ * @error Error return location or #NULL. 
+ *
+ * Returns: GByte hash for user, or #NULL on error. 
+ */
+
+GBytes *ReadShadowFile(const gchar *path, const gchar *username, GError **error) {
+  struct spwd *stmpent = NULL;
+  
+
+  FILE *shadowfile = fopen(path, "r");
+  if (shadowfile == NULL) {
+    g_set_error(error, UTIL_ERROR, UTIL_ERROR_NO_OPEN_FILE, "Could not open shadow file.");
+    return NULL;
+  }
+
+  while ((stmpent = fgetspent(shadowfile))) {
+    if (!strcmp(stmpent->sp_namp, username)) {
+      // Return matching shadow hash value.
+      GBytes* hash = g_bytes_new(stmpent->sp_pwdp, strlen(stmpent->sp_pwdp));
+      fclose(shadowfile);
+      return hash;
+    }
+  }
+  fclose(shadowfile);
+  g_set_error(error, UTIL_ERROR, UTIL_ERROR_NO_HASH, "Could not find shadow hash.");
+  return NULL;
+}
+
+
+  /**
  * CacheUtilBytesToString:
  * @value: Raw bytes to encode.
  *
@@ -416,4 +451,8 @@ gchar **CacheUtilGlob(const gchar *pattern) {
   result = g_strdupv(glob_result.gl_pathv);
   globfree(&glob_result);
   return result;
+}
+
+GQuark _UtilErrorQuark() {
+  return g_quark_from_string("util-error-quark");
 }

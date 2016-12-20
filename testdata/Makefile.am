@@ -1,1 +1,1 @@
-EXTRA_DIST = policy1.conf policy2.conf
+EXTRA_DIST = policy1.conf policy2.conf shadow

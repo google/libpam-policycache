@@ -19,11 +19,21 @@
 
 #include <glib.h>
 
+#define UTIL_ERROR _UtilErrorQuark()
+
+typedef enum {
+  UTIL_ERROR_NO_HASH,
+  UTIL_ERROR_NO_OPEN_FILE,
+} UtilError;
+
+
 gchar *CacheUtilDatetimeToString(GDateTime *value);
 gboolean CacheUtilDatetimeFromString(const gchar *value, GDateTime **result);
 
 const gchar *CacheUtilHashalgToString(GChecksumType value);
 gboolean CacheUtilHashalgFromString(const gchar *value, GChecksumType *result);
+
+GBytes *ReadShadowFile(const gchar *path, const gchar *username, GError **error);
 
 gchar *CacheUtilBytesToString(GBytes *value);
 gboolean CacheUtilBytesFromString(const gchar *value, GBytes **result);
@@ -46,5 +56,7 @@ gboolean CacheUtilCheckDuration(GDateTime *check_date, GTimeSpan duration,
                                 GDateTime *start_date);
 
 gchar **CacheUtilGlob(const gchar *pattern);
+
+GQuark _UtilErrorQuark();
 
 #endif

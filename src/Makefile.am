@@ -37,10 +37,14 @@ pam_escalate_la_LDFLAGS = -shared -module -avoid-version \
 
 
 # The setuid helper for pam_escalate.
-bin_PROGRAMS = pam-escalate-helper
+bin_PROGRAMS = pam-escalate-helper pam-policycache-import
 pam_escalate_helper_SOURCES = escalate_helper.c escalate_helper.h
 pam_escalate_helper_LDADD = libescalate.la
 pam_escalate_helper_LDFLAGS = $(AM_LDFLAGS) -pie
+
+pam_policycache_import_SOURCES = import.c import.h
+pam_policycache_import_LDADD = libcache.la
+pam_policycache_import_LDFLAGS = $(AM_LDFLAGS) -pie
 
 install-exec-hook:
 	chmod u+s $(DESTDIR)$(bindir)/pam-escalate-helper
@@ -127,9 +131,14 @@ escalate_helper_test_LDFLAGS = -no-install $(AM_LDFLAGS) $(MOCK_FLAGS) \
 			       $(ESCALATE_MOCK_FLAGS)
 escalate_helper_test_CFLAGS = -DESCALATE_HELPER_TESTING=1 $(AM_CFLAGS)
 
+import_test_SOURCES = import.c import.h import_test.c
+import_test_LDADD = libcache.la libtest.la
+import_test_LDFLAGS = -no-install $(AM_LDFLAGS) $(MOCK_FLAGS)
+import_test_CFLAGS = -DCACHE_IMPORT_TESTING=1 $(AM_CFLAGS)
+
 check_PROGRAMS = util_test entry_test storage_test policy_test module_test \
 		 escalate_message_test escalate_subprocess_test \
-		 escalate_helper_test escalate_module_test
+		 escalate_helper_test escalate_module_test import_test
 TESTS = $(check_PROGRAMS)
 
 noinst_PROGRAMS = pam_test_tool
