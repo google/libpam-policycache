@@ -1,0 +1,22 @@
+Source: libpam-policycache
+Priority: extra
+Maintainer: Nikki VonHollen <vonhollen@google.com>
+Build-Depends: debhelper (>= 8.0.0), autotools-dev, libglib2.0-dev,
+ libpam0g-dev, automake, libtool, autogen, libscrypt-dev
+Standards-Version: 3.9.2
+Section: libs
+Homepage: https://github.com/google/libpam-policycache
+
+Package: libpam-policycache
+Section: libs
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, libscrypt0
+Description: Password caching module with advanced policies for PAM.
+ Caches passwords from other PAM modules and bypasses those modules based on a
+ configurable policy.
+ .
+ Why use libpam-policycache?
+  * Allows users to login when network is down.
+  * Reduces latency and load on remote login services.
+  * Restricts cache usage to specific users and groups.
+  * Enforces policies like cached password lifetime and rotation.
