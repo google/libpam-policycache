@@ -4,7 +4,7 @@
 	dh $@
 
 override_dh_auto_configure:
-	./autogen.sh
+	dh_autoreconf
 	dh_auto_configure -- --libdir=/lib/$(DEB_HOST_MULTIARCH)
 
 override_dh_auto_install:

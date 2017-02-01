@@ -1,16 +1,15 @@
 Source: libpam-policycache
-Priority: extra
+Priority: optional
 Maintainer: Nikki VonHollen <vonhollen@google.com>
-Build-Depends: debhelper (>= 8.0.0), autotools-dev, libglib2.0-dev,
- libpam0g-dev, automake, libtool, autogen, libscrypt-dev
+Build-Depends: debhelper (>= 9.0.0), autotools-dev, libglib2.0-dev,
+ libpam0g-dev, automake, libtool, autogen, libscrypt-dev, dh-autoreconf
 Standards-Version: 3.9.2
-Section: libs
+Section: admin
 Homepage: https://github.com/google/libpam-policycache
 
 Package: libpam-policycache
-Section: libs
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, libscrypt0
+Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: Password caching module with advanced policies for PAM.
  Caches passwords from other PAM modules and bypasses those modules based on a
  configurable policy.
