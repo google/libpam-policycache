@@ -1,0 +1,22 @@
+#!/bin/sh
+
+set -e
+
+DEFAULT_CACHE_STORAGE='/var/cache/libpam-policycache'
+
+case "$1" in
+  configure)
+    chmod 0700 "$DEFAULT_CACHE_STORAGE"
+    chown root:root /usr/bin/pam-escalate-helper
+    chmod 6755 /usr/bin/pam-escalate-helper
+    ;;
+  abort-upgrade|abort-remove|abort-deconfigure)
+    exit 0
+    ;;
+  *)
+    echo "$0 called with unknown argument '$1'"
+    exit 1
+    ;;
+esac
+
+#DEBHELPER#
