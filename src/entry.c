@@ -326,8 +326,14 @@ gboolean CacheEntryPasswordSet(CacheEntry *self, const gchar *password,
   return TRUE;
 }
 
+/**
+ * CacheEntryHashSet:
+ * @self: Instance to set.
+ * @algorithm: Cache Entry algorithm to set.
+ * @hash: Actual hash to set.
+ */
 void CacheEntryHashSet(CacheEntry *self, CacheEntryAlgorithm algorithm,
-                  GBytes *hash, CacheEntryArgs *args) {
+                       GBytes *hash) {
   self->algorithm = algorithm;
   self->hash = g_bytes_ref(hash);
 }

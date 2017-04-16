@@ -84,7 +84,7 @@ void TestHashalgFromString() {
 
 
 
-void TestReadShadowFile() { 
+void TestCacheUtilReadShadowFile() { 
   GError *error = NULL;
  
   gchar *example_hash = (
@@ -93,19 +93,19 @@ void TestReadShadowFile() {
   gchar *shadowpath = CacheTestGetDataPath("shadow"); 
  
   // Test for a successful read. 
-  GBytes* actual_hash = ReadShadowFile(shadowpath, "johndoe", &error);
+  GBytes* actual_hash = CacheUtilReadShadowFile(shadowpath, "johndoe", &error);
   g_assert_no_error(error);
   g_assert(g_bytes_equal(gbytes_example_hash, actual_hash));
   
   // Test for a nonexistent user.
-  GBytes* no_hash = ReadShadowFile(shadowpath, "noone", &error);
+  GBytes* no_hash = CacheUtilReadShadowFile(shadowpath, "noone", &error);
   g_assert_error(error, UTIL_ERROR, UTIL_ERROR_NO_HASH);
   g_assert(no_hash == NULL);
   g_error_free(error);
  
   GError *errors = NULL; 
   // Test for a nonexistent shadow file.
-  GBytes* no_file = ReadShadowFile("/etc/shadows", "johndoe", &errors);
+  GBytes* no_file = CacheUtilReadShadowFile("/etc/shadows", "johndoe", &errors);
   g_assert_error(errors, UTIL_ERROR, UTIL_ERROR_NO_OPEN_FILE);
   g_assert(no_file == NULL); 
   g_error_free(errors);
@@ -316,7 +316,7 @@ int main(int argc, char **argv) {
       "/util_test/TestDatetimeFromString", TestDatetimeFromString);
  
   g_test_add_func(
-      "/util_test/TestReadShadowFile", TestReadShadowFile);
+      "/util_test/TestCacheUtilReadShadowFile", TestCacheUtilReadShadowFile);
  
   g_test_add_func(
       "/util_test/TestHashalgToString", TestHashalgToString);

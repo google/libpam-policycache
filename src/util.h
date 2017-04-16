@@ -33,7 +33,7 @@ gboolean CacheUtilDatetimeFromString(const gchar *value, GDateTime **result);
 const gchar *CacheUtilHashalgToString(GChecksumType value);
 gboolean CacheUtilHashalgFromString(const gchar *value, GChecksumType *result);
 
-GBytes *ReadShadowFile(const gchar *path, const gchar *username, GError **error);
+GBytes *CacheUtilReadShadowFile(const gchar *path, const gchar *username, GError **error);
 
 gchar *CacheUtilBytesToString(GBytes *value);
 gboolean CacheUtilBytesFromString(const gchar *value, GBytes **result);

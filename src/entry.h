@@ -110,7 +110,7 @@ CacheEntry *CacheEntryUnserialize(const gchar *value, GError **error);
 gchar *CacheEntrySerialize(CacheEntry *self);
 
 void CacheEntryHashSet(CacheEntry *self, CacheEntryAlgorithm alg,
-                  GBytes *hash, CacheEntryArgs *args);
+		       GBytes *hash);
 
 gboolean CacheEntryPasswordSet(CacheEntry *self, const gchar *password,
                                GError **error);

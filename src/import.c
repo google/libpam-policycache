@@ -45,23 +45,22 @@ gboolean CacheImport(const char *shadow_path, const char *storage_path, const ch
 
   GError *errors = NULL;
   // Get user's hashed password.
-  GBytes* shadow_hash = ReadShadowFile(shadow_path, username, &errors);
+  GBytes* shadow_hash = CacheUtilReadShadowFile(shadow_path, username, &errors);
 
   // Create a new Cache Entry.
   CacheEntry *entry = CacheEntryNew();
 
   // Set the newly created entry hash using the /etc/shadow hash.
-  CacheEntryHashSet(entry, CACHE_ENTRY_ALGORITHM_CRYPT, shadow_hash, NULL);
+  CacheEntryHashSet(entry, CACHE_ENTRY_ALGORITHM_CRYPT, shadow_hash);
+
   GError *tmp_error = NULL;
   CacheStorage *storage = CacheStorageNew(storage_path);
-  if (!CacheStoragePutEntry(storage, username, entry, &tmp_error))
-      goto done;
-
-  done:
-    if (tmp_error) {
-      g_set_error(error, CACHE_IMPORT_ERROR, CACHE_IMPORT_ERROR_STORAGE_FAIL, "Could not store cache entry.");
-      return FALSE;
-    }
+  if (!CacheStoragePutEntry(storage, username, entry, &tmp_error)) {
+    // TODO: Log error message
+    g_error_free(tmp_error);
+    g_set_error(error, CACHE_IMPORT_ERROR, CACHE_IMPORT_ERROR_STORAGE_FAIL, "Could not store cache entry.");
+    return FALSE;
+  }
   return TRUE;
 }
 

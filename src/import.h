@@ -24,7 +24,7 @@
 
 typedef enum {
   CACHE_IMPORT_ERROR_STORAGE_FAIL,
-} CacheImportErrorQuark;
+} CacheImportError;
 
 
 gboolean CacheImport(const char *shadow_path, const char *storage_path, const char *username, GError **error);

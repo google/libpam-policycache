@@ -120,7 +120,7 @@ gboolean CacheUtilHashalgFromString(const gchar *value, GChecksumType *result) {
 
 
 /**
- * ReadShadowFile:
+ * CacheUtilReadShadowFile:
  * @path: Shadow file path.
  * @username: Username to read hashed password for.
  * @error Error return location or #NULL. 
@@ -128,7 +128,7 @@ gboolean CacheUtilHashalgFromString(const gchar *value, GChecksumType *result) {
  * Returns: GByte hash for user, or #NULL on error. 
  */
 
-GBytes *ReadShadowFile(const gchar *path, const gchar *username, GError **error) {
+GBytes *CacheUtilReadShadowFile(const gchar *path, const gchar *username, GError **error) {
   struct spwd *stmpent = NULL;
   
 
