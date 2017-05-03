@@ -16,6 +16,7 @@
 
 #include "util.h"
 
+#include <errno.h>
 #include <glob.h>
 #include <grp.h>
 #include <pwd.h>
@@ -131,10 +132,9 @@ gboolean CacheUtilHashalgFromString(const gchar *value, GChecksumType *result) {
 GBytes *CacheUtilReadShadowFile(const gchar *path, const gchar *username, GError **error) {
   struct spwd *stmpent = NULL;
   
-
   FILE *shadowfile = fopen(path, "r");
   if (shadowfile == NULL) {
-    g_set_error(error, UTIL_ERROR, UTIL_ERROR_NO_OPEN_FILE, "Could not open shadow file.");
+    g_set_error(error, UTIL_ERROR, UTIL_ERROR_NO_OPEN_FILE, "Failed to open file: %s",  g_strerror(errno));
     return NULL;
   }
 

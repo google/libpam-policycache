@@ -53,11 +53,9 @@ gboolean CacheImport(const char *shadow_path, const char *storage_path, const ch
   // Set the newly created entry hash using the /etc/shadow hash.
   CacheEntryHashSet(entry, CACHE_ENTRY_ALGORITHM_CRYPT, shadow_hash);
 
-  GError *tmp_error = NULL;
   CacheStorage *storage = CacheStorageNew(storage_path);
-  if (!CacheStoragePutEntry(storage, username, entry, &tmp_error)) {
+  if (!CacheStoragePutEntry(storage, username, entry, error)) {
     // TODO: Log error message
-    g_error_free(tmp_error);
     g_set_error(error, CACHE_IMPORT_ERROR, CACHE_IMPORT_ERROR_STORAGE_FAIL, "Could not store cache entry.");
     return FALSE;
   }
@@ -66,7 +64,6 @@ gboolean CacheImport(const char *shadow_path, const char *storage_path, const ch
 
 #ifndef CACHE_IMPORT_TESTING
 int main(int argc, char *argv[]) {
-  int exit_code = 0;
   GError *error = NULL;
   GOptionContext *context = NULL;
  
@@ -84,18 +81,21 @@ int main(int argc, char *argv[]) {
   if (!g_option_context_parse(context, &argc, &argv, &error)) {
     goto done;
   }
-    
-  char *user = argv[1];
-  if (user != NULL) { 
-    CacheImport(shadow_path, storage_path, user, &error);    
+
+  if (argc > 1) {
+    char *user = argv[1];
+    if (user != NULL) { 
+      CacheImport(shadow_path, storage_path, user, &error);    
+    }  
   }
       
   done:
     if (error) {
-      g_printerr("option parsing failed %s\n", error->message);
+      g_printerr("Failed: %s\n", error->message);
       g_error_free(error);
+      return 1;
     }
-    return exit_code;
+    return 0;
 }
 #endif
 
