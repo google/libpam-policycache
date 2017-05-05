@@ -31,7 +31,10 @@ void TestCacheImport() {
   CacheEntry *entry = CacheStorageGetEntry(storage, "janedoe", &error);
 
   g_assert(CacheEntryPasswordValidate(entry, "password", &error));
-  
+
+  g_free(shadow_path);
+  CacheEntryUnref(entry); 
+  CacheStorageUnref(storage); 
 }
 
 int main(int argc, char **argv) {

@@ -55,10 +55,12 @@ gboolean CacheImport(const char *shadow_path, const char *storage_path, const ch
 
   CacheStorage *storage = CacheStorageNew(storage_path);
   if (!CacheStoragePutEntry(storage, username, entry, error)) {
-    // TODO: Log error message
-    g_set_error(error, CACHE_IMPORT_ERROR, CACHE_IMPORT_ERROR_STORAGE_FAIL, "Could not store cache entry.");
     return FALSE;
   }
+  
+  g_bytes_unref(shadow_hash);
+  CacheEntryUnref(entry);
+  CacheStorageUnref(storage);
   return TRUE;
 }
 
