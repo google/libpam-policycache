@@ -49,7 +49,6 @@ pam_policycache_import_LDFLAGS = $(AM_LDFLAGS) -pie
 install-exec-hook:
 	chmod u+s $(DESTDIR)$(bindir)/pam-escalate-helper
 
-
 # Library and flags used for tests and to mock some libc/glib methods.
 check_LTLIBRARIES = libtest.la libescalatetest.la
 

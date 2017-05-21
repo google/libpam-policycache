@@ -45,9 +45,13 @@ gboolean CacheImport(const char *shadow_path, const char *storage_path, const ch
     storage_path = DEFAULT_STORAGE_PATH;
   }
 
-  GError *errors = NULL;
-  // Get user's hashed password.
-  GBytes* shadow_hash = CacheUtilReadShadowFile(shadow_path, username, &errors);
+  // Get user's hashed password if present.
+  GBytes* shadow_hash = CacheUtilReadShadowFile(shadow_path, username, error);
+  if (!shadow_hash) {
+    goto done;
+  }
+
+  //GBytes* shadow_hash = CacheUtilReadShadowFile(shadow_path, username, error);
 
   // Create a new Cache Entry.
   CacheEntry *entry = CacheEntryNew();
@@ -58,11 +62,16 @@ gboolean CacheImport(const char *shadow_path, const char *storage_path, const ch
   CacheStorage *storage = CacheStorageNew(storage_path);
 
   result = CacheStoragePutEntry(storage, username, entry, error);
-  
+
+
   g_bytes_unref(shadow_hash);
   CacheEntryUnref(entry);
   CacheStorageUnref(storage);
   return result;
+
+  done:
+    g_free(shadow_hash);
+    return result;
 }
 
 #ifndef CACHE_IMPORT_TESTING
@@ -84,7 +93,7 @@ int main(int argc, char *argv[]) {
   if (!g_option_context_parse(context, &argc, &argv, &error)) {
     goto done;
   }
-
+ 
   if (argc > 1) {
     char *user = argv[1];
     if (user != NULL) { 
@@ -94,7 +103,7 @@ int main(int argc, char *argv[]) {
       
   done:
     if (error) {
-      g_printerr("Failed: %s\n", error->message);
+      g_printerr("Failure: %s\n", error->message);
       g_error_free(error);
       return 1;
     }
