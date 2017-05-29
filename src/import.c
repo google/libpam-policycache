@@ -36,7 +36,9 @@
 
 gboolean CacheImport(const char *shadow_path, const char *storage_path, const char *username, GError **error) {
   gboolean result = FALSE;
-
+  CacheStorage *storage = NULL;
+  CacheEntry *entry = NULL;
+ 
   if (!shadow_path) {
     shadow_path = "/etc/shadow";
   }
@@ -54,24 +56,28 @@ gboolean CacheImport(const char *shadow_path, const char *storage_path, const ch
   //GBytes* shadow_hash = CacheUtilReadShadowFile(shadow_path, username, error);
 
   // Create a new Cache Entry.
-  CacheEntry *entry = CacheEntryNew();
+  entry = CacheEntryNew();
 
   // Set the newly created entry hash using the /etc/shadow hash.
   CacheEntryHashSet(entry, CACHE_ENTRY_ALGORITHM_CRYPT, shadow_hash);
 
-  CacheStorage *storage = CacheStorageNew(storage_path);
+  storage = CacheStorageNew(storage_path);
 
   result = CacheStoragePutEntry(storage, username, entry, error);
 
-
-  g_bytes_unref(shadow_hash);
-  CacheEntryUnref(entry);
-  CacheStorageUnref(storage);
-  return result;
-
-  done:
+done:
+  if (!shadow_hash) {
     g_free(shadow_hash);
-    return result;
+  } 
+  g_bytes_unref(shadow_hash); 
+
+  if (entry) { 
+    CacheEntryUnref(entry);
+  }
+  if (storage) {
+    CacheStorageUnref(storage);
+  }
+  return result;
 }
 
 #ifndef CACHE_IMPORT_TESTING
