@@ -53,8 +53,6 @@ gboolean CacheImport(const char *shadow_path, const char *storage_path, const ch
     goto done;
   }
 
-  //GBytes* shadow_hash = CacheUtilReadShadowFile(shadow_path, username, error);
-
   // Create a new Cache Entry.
   entry = CacheEntryNew();
 
@@ -66,11 +64,9 @@ gboolean CacheImport(const char *shadow_path, const char *storage_path, const ch
   result = CacheStoragePutEntry(storage, username, entry, error);
 
 done:
-  if (!shadow_hash) {
-    g_free(shadow_hash);
+  if (shadow_hash) {
+    g_bytes_unref(shadow_hash);
   } 
-  g_bytes_unref(shadow_hash); 
-
   if (entry) { 
     CacheEntryUnref(entry);
   }

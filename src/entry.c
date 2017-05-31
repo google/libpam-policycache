@@ -336,6 +336,12 @@ void CacheEntryHashSet(CacheEntry *self, CacheEntryAlgorithm algorithm,
                        GBytes *hash) {
   self->algorithm = algorithm;
   self->hash = g_bytes_ref(hash);
+  
+  GDateTime *now = g_date_time_new_now_utc();
+  CacheEntryUpdateTime(&self->last_verified, now);
+  CacheEntryUpdateTime(&self->last_used, now);
+  CacheEntryUpdateTime(&self->last_tried, now);
+  g_date_time_unref(now);
 }
 
 /**
