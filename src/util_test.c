@@ -113,7 +113,6 @@ void TestCacheUtilReadShadowFile() {
   g_free(shadowpath);
   g_bytes_unref(gbytes_example_hash);
   g_bytes_unref(actual_hash);
-
 }
 
 
