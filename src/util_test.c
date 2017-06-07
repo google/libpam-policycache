@@ -109,6 +109,11 @@ void TestCacheUtilReadShadowFile() {
   g_assert_error(error, UTIL_ERROR, UTIL_ERROR_NO_OPEN_FILE);
   g_assert(no_file == NULL); 
   g_error_free(error);
+
+  g_free(shadowpath);
+  g_bytes_unref(gbytes_example_hash);
+  g_bytes_unref(actual_hash);
+
 }
 
 
