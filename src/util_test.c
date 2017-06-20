@@ -18,6 +18,8 @@
 #include "util.h"
 
 #include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
 
 static guint8 expected_password_hash [] = {
   0x51, 0xcb, 0x22, 0xe1, 0x65, 0x19, 0x78, 0x32, 0x09, 0x14,
@@ -79,6 +81,40 @@ void TestHashalgFromString() {
   g_assert(!CacheUtilHashalgFromString("SHA", &result));
   g_assert_cmpint(G_CHECKSUM_SHA256, ==, result);
 }
+
+
+
+void TestCacheUtilReadShadowFile() { 
+  GError *error = NULL;
+ 
+  gchar *example_hash = (
+      "$6$1234567890123456$HsVhUUvQnfhyEQ6OIZAWrigLa0qX29Su.3l8G4BBqgRfx9fVAIG9bVcGpOnI0r.vTSsJ3hOVMFCovyIbtpAc81");
+  GBytes* gbytes_example_hash = g_bytes_new(example_hash, strlen(example_hash));
+  gchar *shadowpath = CacheTestGetDataPath("shadow"); 
+ 
+  // Test for a successful read. 
+  GBytes* actual_hash = CacheUtilReadShadowFile(shadowpath, "johndoe", &error);
+  g_assert_no_error(error);
+  g_assert(g_bytes_equal(gbytes_example_hash, actual_hash));
+  
+  // Test for a nonexistent user.
+  GBytes* no_hash = CacheUtilReadShadowFile(shadowpath, "noone", &error);
+  g_assert_error(error, UTIL_ERROR, UTIL_ERROR_NO_HASH);
+  g_assert(no_hash == NULL);
+  g_error_free(error);
+ 
+  error = NULL; 
+  // Test for a nonexistent shadow file.
+  GBytes* no_file = CacheUtilReadShadowFile("/etc/shadows", "johndoe", &error);
+  g_assert_error(error, UTIL_ERROR, UTIL_ERROR_NO_OPEN_FILE);
+  g_assert(no_file == NULL); 
+  g_error_free(error);
+
+  g_free(shadowpath);
+  g_bytes_unref(gbytes_example_hash);
+  g_bytes_unref(actual_hash);
+}
+
 
 
 void TestBytesToString() {
@@ -282,7 +318,10 @@ int main(int argc, char **argv) {
       "/util_test/TestDatetimeToString", TestDatetimeToString);
   g_test_add_func(
       "/util_test/TestDatetimeFromString", TestDatetimeFromString);
-
+ 
+  g_test_add_func(
+      "/util_test/TestCacheUtilReadShadowFile", TestCacheUtilReadShadowFile);
+ 
   g_test_add_func(
       "/util_test/TestHashalgToString", TestHashalgToString);
   g_test_add_func(

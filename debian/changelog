@@ -1,3 +1,9 @@
+libpam-policycache (0.9) trusty; urgency=medium
+
+  * Added util to migrate /etc/shadow passwords.
+
+ -- Eric McClung <emcclung@google.com>  Mon, 19 Jun 2017 20:33:42 -0700
+
 libpam-policycache (0.8) trusty; urgency=medium
 
   * Added Debian packaging.
