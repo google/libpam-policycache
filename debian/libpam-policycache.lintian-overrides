@@ -1,1 +1,2 @@
 libpam-policycache: binary-without-manpage usr/bin/pam-escalate-helper
+libpam-policycache: binary-without-manpage usr/bin/pam-policycache-import
