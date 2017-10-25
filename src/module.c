@@ -119,6 +119,7 @@ int CacheModuleDoAction(CacheModule *self, const gchar *password,
     g_set_error(
         error, CACHE_MODULE_ERROR, CACHE_MODULE_NO_POLICY_ERROR,
         "Error looking for policy files using \"%s\"", self->policy_path);
+    goto done;
   } else if (!policy_paths[0]) {
     g_set_error(
         error, CACHE_MODULE_ERROR, CACHE_MODULE_NO_POLICY_ERROR,
