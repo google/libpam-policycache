@@ -78,14 +78,14 @@ without being verified again using another module.
 # /etc/libpam-policycache.d/foo.policy
 
 [user:janedoe]
-renew: 1w
-expire: 52w
+renew=1w
+expire=52w
 
 [group:users]
-tries: 3
-refresh: 1h
-renew: 1d
-expire: 2d
+tries=3
+refresh=1h
+renew=1d
+expire=2d
 ```
 
 
