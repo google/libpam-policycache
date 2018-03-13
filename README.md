@@ -78,14 +78,14 @@ without being verified again using another module.
 # /etc/libpam-policycache.d/foo.policy
 
 [user:janedoe]
-renew: 1w
-expire: 52w
+renew=1w
+expire=52w
 
 [group:users]
-tries: 3
-refresh: 1h
-renew: 1d
-expire: 2d
+tries=3
+refresh=1h
+renew=1d
+expire=2d
 ```
 
 
@@ -107,7 +107,10 @@ denied, since the cache directory is only usable by root. Those applications
 should use `pam_escalate.so` instead, which proxies the authentication prompt(s)
 through a pipe to a setuid-root helper called `pam-escalate-helper`. The helper
 calls `pam_start()` and `pam_authenticate()` just like an application would, and
-it always uses `/etc/pam.d/escalate` for the service configuration.
+it always uses `/etc/pam.d/escalate` for the service configuration. It checks in
+advance that the user calling it is the same user as the one who should be
+authenticated so it doesn't work for cases like web oder mail servers who check
+system users.
 
 The escalate module clears all environment variables, ignores some PAM items,
 and only implements `pam_sm_authenticate()` so it may not cover all use cases.
