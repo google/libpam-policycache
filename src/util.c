@@ -339,6 +339,9 @@ gboolean CacheUtilTimespanFromString(const gchar *value, GTimeSpan *result) {
     return FALSE;
 
   switch (suffix[0]) {
+    case 'm':
+      multiple = G_TIME_SPAN_MINUTE;
+      break;
     case 'h':
       multiple = G_TIME_SPAN_HOUR;
       break;
