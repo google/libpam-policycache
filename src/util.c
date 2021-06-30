@@ -48,16 +48,10 @@ static CacheUtilNameToHashAlg name_to_hashalg[] = {
  * (ISO 8601) or #NULL if the date couldn't be serialized.
  */
 gchar *CacheUtilDatetimeToString(GDateTime *value) {
-  GTimeVal tv = {0, 0};
-
   if (!value)
     return NULL;
 
-  if (g_date_time_to_timeval(value, &tv)) {
-    return g_time_val_to_iso8601(&tv);
-  } else {
-    return NULL;
-  }
+  return g_date_time_format_iso8601(value);
 }
 
 
@@ -71,15 +65,16 @@ gchar *CacheUtilDatetimeToString(GDateTime *value) {
  * parsed.
  */
 gboolean CacheUtilDatetimeFromString(const gchar *value, GDateTime **result) {
-  GTimeVal tv = {0, 0};
   g_assert(result);
 
-  if (g_time_val_from_iso8601(value, &tv)) {
-    *result = g_date_time_new_from_timeval_utc(&tv);
-    return TRUE;
-  } else {
+  GTimeZone *tz = g_time_zone_new_utc();
+  GDateTime *dt = g_date_time_new_from_iso8601(value, tz);
+  g_time_zone_unref(tz);
+  if (!dt)
     return FALSE;
-  }
+
+  *result = dt;
+  return TRUE;
 }
 
 
