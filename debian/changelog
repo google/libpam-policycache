@@ -1,3 +1,10 @@
+libpam-policycache (0.11) bullseye; urgency=medium
+
+  * Move away from deprecated GTimeVal structs 
+  * Move to debian/compat v10 and clean up some lintian warnings
+
+ -- Mike Gerow <gerow@google.com>  Wed, 30 Jun 2021 09:32:31 -0700
+
 libpam-policycache (0.10) trusty; urgency=medium
 
   * Fixed assertion error when no policy paths are found.

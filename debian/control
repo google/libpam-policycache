@@ -1,9 +1,9 @@
 Source: libpam-policycache
 Priority: optional
 Maintainer: Nikki VonHollen <vonhollen@google.com>
-Build-Depends: debhelper (>= 9.0.0), autotools-dev, libglib2.0-dev,
- libpam0g-dev, automake, libtool, autogen, libscrypt-dev, dh-autoreconf
-Standards-Version: 3.9.2
+Build-Depends: debhelper (>= 9.0.0), libglib2.0-dev, libpam0g-dev, automake,
+  libtool, autogen, libscrypt-dev, dh-autoreconf
+Standards-Version: 4.5.1
 Section: admin
 Homepage: https://github.com/google/libpam-policycache
 
